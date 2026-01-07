@@ -56,7 +56,7 @@ st.info(
 cta1, cta2 = st.columns([1, 3])
 with cta1:
     if st.button("📓 Visualization Journal", type="primary", use_container_width=True):
-        st.switch_page("pages/11_Visualization_Journal.py")
+        st.switch_page("pages/8_Viz_Journal.py")
 with cta2:
     st.caption("Learn visualization from beginner → advanced with interactive practice.")
 
