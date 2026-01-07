@@ -1,0 +1,35 @@
+app:
+  title: "Data Science & AI Studio"
+  refresh_rate_seconds: 30
+  default_task: "auto" # auto|regression|classification|forecasting
+
+security:
+  # Production default: keep API ingestion disabled unless explicitly enabled.
+  allow_api_ingestion: false
+  # Allowlist of hosts/domains for API ingestion when enabled.
+  # Examples: ["api.example.com", "data.mycompany.internal"]
+  api_allowlist: []
+  # Hard limit for API response payload size (bytes) to prevent memory blowups.
+  max_api_response_bytes: 10485760  # 10MB
+  # Production default: disable runtime pip install from the UI.
+  allow_runtime_pip_install: false
+
+data:
+  max_rows_preview: 5000
+
+models:
+  registry_dir: "models"
+  artifacts_dir: "artifacts"
+  default_tabular_model: "RandomForest"
+  default_forecast_model: "Transformer"
+
+ai:
+  provider: "local" # local|openai_compatible
+  # For openai_compatible, set API key in Streamlit secrets or env var (see Settings page)
+  model: "google/flan-t5-small"
+  max_new_tokens: 256
+
+logging:
+  log_dir: "logs"
+  level: "INFO"
+  history_db_path: "data/history.sqlite"

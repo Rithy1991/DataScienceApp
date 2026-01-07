@@ -1,0 +1,22 @@
+services:
+  datascope-pro:
+    build: .
+    container_name: datascope_app
+    ports:
+      - "8501:8501"
+    volumes:
+      # Mount persistence folders so data isn't lost when container stops
+      - ./artifacts:/app/artifacts
+      - ./checkpoints:/app/checkpoints
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+      # Optional: Mount local code for development (changes reflect instantly)
+      # - ./:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G  # Limit memory to avoid crashing host on big trainings

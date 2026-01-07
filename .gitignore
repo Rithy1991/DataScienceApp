@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+.conda/
+.DS_Store
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Artifacts
+artifacts/
+models/
+logs/
+data/history.sqlite
