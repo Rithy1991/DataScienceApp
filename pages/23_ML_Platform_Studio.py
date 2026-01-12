@@ -746,8 +746,10 @@ with st.expander("📦 Batch Predictions", expanded=False):
             df_batch = pd.read_csv(uploaded_pred)
             model_name = st.selectbox("Model", list(st.session_state.platform_models.keys()), key="pred_model_batch")
             model = st.session_state.platform_models[model_name]
-            # Feature validation before prediction
+            # Improved feature validation before prediction
             trained_features = getattr(model, "feature_names_in_", None)
+            if trained_features is None and hasattr(model, "meta"):
+                trained_features = model.meta.get("features", None)
             if trained_features is not None:
                 missing_cols = set(trained_features) - set(df_batch.columns)
                 if missing_cols:
