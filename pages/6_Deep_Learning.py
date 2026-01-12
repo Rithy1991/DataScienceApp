@@ -17,6 +17,12 @@ from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    concept_explainer,
+    common_mistakes_panel,
+)
 from src.core.styles import render_stat_card, inject_custom_css
 from src.ml.forecast_transformer import (
     forecast_transformer,
@@ -965,4 +971,23 @@ with tab4:
         })
 
 # Page navigation
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="Deep Learning Forecasting",
+    explanation=(
+        "Use sequence models (Transformer/TFT) to forecast time series. Balance accuracy, speed, and interpretability; log runs for reproducibility."
+    ),
+    real_world_example=(
+        "Demand planning: Forecast weekly units using historical sales, promotions, and holidays; compare model horizons and retrain monthly."
+    ),
+)
+beginner_tip("Tip: Start with shorter horizons and fewer features; expand once stable.")
+common_mistakes_panel({
+    "No scaling": "Scale features to stabilize training and convergence.",
+    "Too long horizon": "Far horizons degrade accuracy; align with business cadence.",
+    "Ignoring seasonality": "Include calendar features and promotions.",
+    "No validation": "Always backtest with sliding-window or time-aware splits.",
+    "Unlogged experiments": "Save configs, versions, and metrics for audit.",
+})
+
 page_navigation("6")

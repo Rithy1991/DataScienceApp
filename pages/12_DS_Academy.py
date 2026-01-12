@@ -7,6 +7,12 @@ from plotly.subplots import make_subplots
 
 from src.core.config import load_config
 from src.core.ui import instruction_block, sidebar_dataset_status, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    concept_explainer,
+    common_mistakes_panel,
+)
 from src.data.samples import describe_sample_dataset, get_sample_datasets
 from src.core.styles import inject_custom_css
 from src.core.ai_helper import ai_sidebar_assistant
@@ -34,6 +40,24 @@ st.markdown(
 
 # --- Outcomes ---
 st.markdown("### 🎯 Learning Outcomes")
+# --- Learning Guide ---
+standard_section_header("Academy Guide & Tips", "🎓")
+concept_explainer(
+    title="Learn by Doing",
+    explanation=(
+        "Follow the curriculum from EDA to deployment. Each lab shows real-world tasks with datasets, code, and explanations to build practical skills."
+    ),
+    real_world_example=(
+        "Churn analysis: Clean customer data, engineer tenure features, compare classifiers, explain results to stakeholders, and deploy prediction."
+    ),
+)
+beginner_tip("Tip: Save your cleaned data and reuse it across modules to keep consistency.")
+common_mistakes_panel({
+    "Skipping practice": "Apply concepts in labs; repetition builds confidence.",
+    "Unorganized notes": "Document decisions, parameters, and outcomes.",
+    "Ignoring metrics": "Tie learning to measurable improvements.",
+    "No project goal": "Define success criteria for each lab.",
+})
 outcomes_col1, outcomes_col2, outcomes_col3 = st.columns(3)
 with outcomes_col1:
     st.markdown(

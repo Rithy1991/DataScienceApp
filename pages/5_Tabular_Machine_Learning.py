@@ -7,6 +7,7 @@ import sys
 import subprocess
 
 import pandas as pd
+import numpy as np
 import streamlit as st
 
 st.set_page_config(page_title="DataScope Pro - Tabular ML", layout="wide", initial_sidebar_state="expanded")
@@ -19,6 +20,12 @@ from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    concept_explainer,
+    common_mistakes_panel,
+)
 from src.core.styles import inject_custom_css
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import smart_metric_card, comparison_table, success_message_with_next_steps, enhanced_chart
@@ -990,35 +997,37 @@ try:
                                 lookback=lookback,
                             )
                             if "forecast_time" in forecast_df.columns and forecast_df["forecast_time"].notna().any():
-                                forecast_dates = forecast_df["forecast_time"].tolist()
+                                forecast_dates = pd.to_datetime(forecast_df["forecast_time"], errors="coerce")
+                            elif has_delta:
+                                forecast_dates = pd.to_datetime([last_time + (i + 1) * delta for i in range(horizon)])
                             else:
-                                forecast_dates = (
-                                    [last_time + (i + 1) * delta for i in range(horizon)]
-                                    if has_delta
-                                    else list(range(1, len(forecast_df) + 1))
-                                )
+                                # Default to daily steps when cadence is unknown to keep dates datetime-like
+                                forecast_dates = pd.date_range(start=last_time + pd.Timedelta(days=1), periods=len(forecast_df), freq="D")
                             model_type_norm = "tft"
                         else:
                             from src.ml.forecast_transformer import load_transformer_forecaster, forecast_transformer
                             model, ckpt = load_transformer_forecaster(rec.artifact_path)
                             series = d_hist[target_col].to_numpy(dtype=np.float32)
                             preds = forecast_transformer(model, ckpt, history=series)
-                            forecast_dates = (
-                                [last_time + (i + 1) * delta for i in range(len(preds))]
-                                if has_delta
-                                else list(range(1, len(preds) + 1))
-                            )
+                            if has_delta:
+                                forecast_dates = pd.to_datetime([last_time + (i + 1) * delta for i in range(len(preds))])
+                            else:
+                                forecast_dates = pd.date_range(start=last_time + pd.Timedelta(days=1), periods=len(preds), freq="D")
                             model_type_norm = "transformer"
 
                         # Historical tail
                         hist_tail = d_hist.tail(min(lookback, len(d_hist)))
                         historical_values = hist_tail[target_col].to_numpy()
-                        historical_dates = hist_tail[time_col].tolist()
+                        historical_dates = pd.DatetimeIndex(hist_tail[time_col])
 
                         # Ensure preds is 1D numpy array to avoid DataFrame truthiness issues
                         preds_array = np.asarray(preds).reshape(-1)
 
                         lower, upper = estimate_confidence_intervals(preds_array, model_type=model_type_norm)
+
+                        # Ensure forecast_dates is DatetimeIndex, not list
+                        if not isinstance(forecast_dates, pd.DatetimeIndex):
+                            forecast_dates = pd.DatetimeIndex(forecast_dates)
 
                         results.append(
                             ForecastResult(
@@ -1026,7 +1035,7 @@ try:
                                 model_type=model_type_norm,
                                 target_column=target_col,
                                 forecast_values=preds_array,
-                                forecast_dates=list(forecast_dates),
+                                forecast_dates=forecast_dates,
                                 historical_values=historical_values,
                                 historical_dates=historical_dates,
                                 lower_bound=lower,
@@ -1044,5 +1053,24 @@ try:
                     render_model_comparison(results, title="Forecast Models Comparison")
 except Exception as e:
     st.warning(f"Forecast comparison section failed: {e}")
+
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="Tabular ML",
+    explanation=(
+        "Train supervised models on structured rows and columns. Compare algorithms, tune parameters, and select the best using appropriate metrics."
+    ),
+    real_world_example=(
+        "Lead scoring: Predict conversion probability using demographics and interactions; compare Logistic Regression vs Random Forest and pick based on AUC and operational needs."
+    ),
+)
+beginner_tip("Tip: Start with simpler models (Logistic/Linear) to establish a baseline and interpretability, then escalate to ensembles.")
+common_mistakes_panel({
+    "Wrong task selection": "Auto-detect or explicitly set classification vs regression.",
+    "Ignoring class imbalance": "Use stratified splits and metrics beyond accuracy.",
+    "Training on unclean data": "Run cleaning and feature engineering beforehand.",
+    "No reproducibility": "Log seeds, configs, and dataset snapshots.",
+    "Overfitting": "Use cross-validation and regularization; watch train vs test metrics.",
+})
 
 page_navigation("5")

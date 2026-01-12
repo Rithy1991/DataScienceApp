@@ -12,8 +12,14 @@ import pandas as pd
 from scipy import stats
 
 from src.core.config import load_config
-from src.core.state import get_clean_df, get_df
+from src.core.state import get_clean_df, get_df, set_df, set_clean_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    concept_explainer,
+    common_mistakes_panel,
+)
 from src.core.styles import render_stat_card, inject_custom_css
 from src.core.premium_styles import inject_premium_css
 from src.core.modern_components import smart_data_preview, auto_data_profile
@@ -40,35 +46,85 @@ st.markdown(
 )
 
 instruction_block(
-    "How to use this page",
+    "🎯 Complete EDA Workflow - Step by Step",
     [
-        "Prefer cleaned data; raw works if needed.",
-        "Scan metrics and missingness to judge data quality.",
-        "Use correlations and distributions to spot relationships; trim columns if charts get busy.",
-        "Check categorical breakdowns and box plots to compare a target by group.",
-        "Run anomaly detection to flag extreme numeric values before modeling.",
+        "📊 **Step 1: Data Quality Check** - Review completeness, missing values, and data types",
+        "🔍 **Step 2: Understand Distributions** - Identify skewness, outliers, and value ranges",
+        "🔗 **Step 3: Find Relationships** - Discover correlations and feature interactions",
+        "⚠️ **Step 4: Detect Anomalies** - Flag extreme values that may need attention",
+        "📈 **Step 5: Statistical Testing** - Validate relationships and differences",
+        "🎯 **Step 6: Profile Deep Dive** - Column-by-column analysis for comprehensive understanding",
+        "⏰ **Step 7: Time Patterns** - Identify temporal trends if time data exists",
+        "🔬 **Step 8: Advanced Analysis** - Feature variance, interactions, and transformations",
     ],
 )
 
-st.info(
-    "Quick EDA to see distributions, correlations, and anomalies so you know what to fix or keep before modeling.",
-    icon="ℹ️",
-)
+st.markdown("""
+### 📚 Understanding EDA (Exploratory Data Analysis)
+
+**What is EDA?**
+EDA is your "data detective work" phase - systematically investigating your dataset to understand:
+- **Quality**: Missing values, duplicates, errors
+- **Structure**: Data types, value ranges, distributions
+- **Relationships**: Correlations, patterns, dependencies
+- **Anomalies**: Outliers, unusual values, data quality issues
+
+**Why is EDA critical?**
+- **Prevents modeling mistakes**: Catch data issues before they poison your model
+- **Guides feature engineering**: Discover which transformations help
+- **Validates assumptions**: Ensure data matches your expectations
+- **Improves results**: Clean, well-understood data = better models
+
+**Real-world example:**
+Predicting customer churn? EDA reveals:
+- 30% missing contract dates → Need imputation strategy
+- Tenure highly skewed → Consider log transformation
+- Support calls strongly correlated with churn → Key feature!
+- Age has outliers (150 years) → Data entry errors to fix
+""")
 
 # Beginner quick start
 st.success(
-    "Quick start: (1) Preview the data below, (2) Use tabs to check distributions and correlations, "
-    "(3) If something looks wrong, tweak it in Manual Editing above, (4) Download or proceed to modeling.",
+    "🚀 **Quick Start Guide**: (1) Check Data Quality metrics below → (2) Use tabs to explore patterns → "
+    "(3) Review interpretation guides in each section → (4) Fix issues in Data Cleaning → (5) Proceed to modeling",
     icon="✅",
+)
+
+beginner_tip(
+    "💡 **First-time user?** Focus on the Overview and Relationships tabs first. "
+    "They give you the fastest insight into your data quality and structure."
 )
 
 raw_df = get_df(st.session_state)
 clean_df = get_clean_df(st.session_state)
 
 sidebar_dataset_status(raw_df, clean_df)
-
-
 df = clean_df if clean_df is not None else raw_df
+
+# Sample dataset helper for quick start
+if df is None:
+    st.warning("No data loaded. Use the Cleaning page or load a quick sample to explore.")
+    col_sample, col_upload = st.columns([1.2, 1])
+    with col_sample:
+        if st.button("Load sample dataset (Retail Sales)", type="primary", use_container_width=True):
+            sample = pd.DataFrame(
+                {
+                    "date": pd.date_range("2024-01-01", periods=180, freq="D"),
+                    "store_id": np.random.choice(["A", "B", "C"], size=180),
+                    "promo": np.random.choice([0, 1], size=180, p=[0.7, 0.3]),
+                    "sales": np.random.normal(loc=12000, scale=3200, size=180).round(0),
+                    "transactions": np.random.normal(loc=430, scale=90, size=180).round(0),
+                }
+            )
+            set_df(st.session_state, sample, source="sample_retail")
+            set_clean_df(st.session_state, sample.copy())
+            st.success("Sample dataset loaded—scroll down to explore.")
+            raw_df = sample
+            clean_df = sample
+            df = sample
+    with col_upload:
+        st.caption("Tip: You can still upload your own data in the Cleaning page.")
+
 if df is None:
     st.info("Load data in Data Cleaning page first.")
     st.stop()
@@ -141,18 +197,45 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
 ])
 
 with tab1:
-    st.subheader("Data Quality Overview")
+    st.markdown("## 📊 Step 1: Data Quality Overview")
+    st.markdown("""
+    **What to look for:**
+    - **Rows (Sample Size)**: More rows = more reliable patterns (typically 100+ for simple models, 1000+ for complex)
+    - **Columns (Features)**: Too many? Risk of overfitting. Too few? May miss important patterns
+    - **Missing %**: Your data completeness score - lower is better
+    - **Data Types**: Mix of numeric and categorical gives richer modeling options
+    """)
     
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("📊 Rows", f"{summary.n_rows:,}")
+        st.metric("📊 Total Rows", f"{summary.n_rows:,}")
+        if summary.n_rows < 100:
+            st.caption("⚠️ Small sample - results may be unreliable")
+        elif summary.n_rows < 1000:
+            st.caption("✓ Moderate sample - good for simple models")
+        else:
+            st.caption("✅ Large sample - excellent for modeling")
     with c2:
-        st.metric("📑 Columns", f"{summary.n_cols:,}")
+        st.metric("📑 Total Columns", f"{summary.n_cols:,}")
+        ratio = summary.n_rows / summary.n_cols if summary.n_cols > 0 else 0
+        if ratio < 10:
+            st.caption("⚠️ High dimension - consider feature selection")
+        else:
+            st.caption("✅ Good feature-to-sample ratio")
     with c3:
         pct_missing = (summary.missing_total / (summary.n_rows * summary.n_cols) * 100) if summary.n_rows * summary.n_cols > 0 else 0
-        st.metric("⚠️ Missing %", f"{pct_missing:.1f}%")
+        st.metric("⚠️ Missing Data %", f"{pct_missing:.1f}%")
+        if pct_missing < 1:
+            st.caption("✅ Excellent completeness")
+        elif pct_missing < 5:
+            st.caption("✓ Good - minor imputation needed")
+        elif pct_missing < 20:
+            st.caption("⚠️ Moderate - plan imputation strategy")
+        else:
+            st.caption("🚨 High - investigate data collection")
     with c4:
-        st.metric("🔢 Numeric cols", f"{len(summary.numeric_cols):,}")
+        st.metric("🔢 Numeric Columns", f"{len(summary.numeric_cols):,}")
+        st.caption(f"📝 Categorical: {len(summary.categorical_cols)}")
     
     st.divider()
     
@@ -209,7 +292,34 @@ with tab1:
             """)
 
 with tab2:
-    st.subheader("📊 Correlation Analysis")
+    st.markdown("## 🔗 Step 2: Feature Relationships & Correlations")
+    st.markdown("""
+    **📚 Correlation Guide:**
+    
+    **What is correlation?**
+    - Measures linear relationship strength between two numeric variables (-1 to +1)
+    
+    **How to interpret correlation values:**
+    - **±0.9 to ±1.0**: Very strong relationship (almost perfect)
+    - **±0.7 to ±0.9**: Strong relationship (highly correlated)
+    - **±0.4 to ±0.7**: Moderate relationship (noticeable pattern)
+    - **±0.2 to ±0.4**: Weak relationship (slight connection)
+    - **0.0 to ±0.2**: Very weak/no linear relationship
+    
+    **Positive vs Negative:**
+    - **Positive (+)**: Variables move together (age ↑ → experience ↑)
+    - **Negative (−)**: Variables move oppositely (price ↑ → demand ↓)
+    
+    **Why it matters for modeling:**
+    - **High correlations (>0.9)**: May indicate redundant features - consider removing one
+    - **Moderate correlations (0.4-0.7)**: Good predictive features to keep
+    - **Target correlations**: Features highly correlated with target are typically most important
+    - **Multicollinearity**: When features correlate with each other, it can confuse some models
+    
+    **⚠️ Important caveat:**
+    - Correlation ≠ Causation! High correlation doesn't prove one causes the other
+    - Only captures LINEAR relationships (may miss complex patterns)
+    """)
     
     if summary.numeric_cols:
         cols = st.multiselect(
@@ -286,7 +396,38 @@ with tab2:
         st.caption("Need categorical and numeric columns")
 
 with tab3:
-    st.subheader("🎯 Distribution Analysis")
+    st.markdown("## 📈 Step 3: Distribution Analysis & Patterns")
+    st.markdown("""
+    **📚 Understanding Distributions:**
+    
+    **Why distributions matter:**
+    - Reveal data quality issues (gaps, outliers, errors)
+    - Guide preprocessing decisions (scaling, transformations)
+    - Indicate appropriate modeling techniques
+    - Show if assumptions (like normality) are met
+    
+    **Distribution shapes to recognize:**
+    - **Normal (bell curve)**: Symmetric, most data near center - ideal for many statistical methods
+    - **Skewed right**: Long tail to right, mean > median - common in income, prices (consider log transform)
+    - **Skewed left**: Long tail to left, mean < median - less common (consider reflection + log)
+    - **Uniform**: Flat, all values equally likely - rare in real data
+    - **Bimodal**: Two peaks - may indicate mixed populations (consider separate analysis)
+    - **Heavy-tailed**: More extreme values than normal - use robust methods
+    
+    **Key statistics explained:**
+    - **Skewness**: Measures asymmetry
+      - Near 0: Symmetric
+      - Positive: Right-skewed
+      - Negative: Left-skewed
+    - **Kurtosis**: Measures tail heaviness (outlier tendency)
+      - Near 0: Normal-like tails
+      - Positive: Heavy tails (more outliers)
+      - Negative: Light tails (fewer outliers)
+    - **CV (Coefficient of Variation)**: Std dev as % of mean
+      - < 15%: Low variability
+      - 15-30%: Moderate variability
+      - > 30%: High variability
+    """)
     
     if summary.numeric_cols:
         col1, col2 = st.columns(2)
@@ -373,7 +514,41 @@ with tab3:
         st.caption("Select 2-6 numeric columns to see pairwise scatter plots")
 
 with tab4:
-    st.subheader("⚠️ Anomaly Detection")
+    st.markdown("## ⚠️ Step 4: Anomaly Detection & Outlier Analysis")
+    st.markdown("""
+    **📚 What are anomalies/outliers?**
+    Data points that significantly deviate from the typical pattern. They can be:
+    - **Errors**: Data entry mistakes, sensor failures (150-year-old customer)
+    - **Rare events**: Legitimate but unusual (billionaire in income data)
+    - **Important signals**: Fraud, disease, system failures
+    
+    **Z-Score Method Explained:**
+    - **Z-score** = (value - mean) / std_dev
+    - Measures how many standard deviations a point is from the mean
+    - Works best for normally-distributed data
+    
+    **Threshold Guide:**
+    - **Z = 2.0**: Flags ~5% of data (loose, catches more)
+    - **Z = 2.5**: Flags ~1.2% of data (moderate)
+    - **Z = 3.0**: Flags ~0.3% of data (strict, standard choice) ✅
+    - **Z = 4.0**: Flags ~0.006% of data (very strict, only extremes)
+    
+    **What to do with anomalies:**
+    1. **Investigate**: Check if they're errors or legitimate
+    2. **Context matters**: A 150-year age is wrong; a $1M sale might be real
+    3. **Options**:
+       - **Remove**: If clearly errors
+       - **Cap/floor**: Limit to reasonable max/min (winsorization)
+       - **Transform**: Use robust scalers or log transforms
+       - **Keep**: If they're important (fraud detection)
+       - **Separate model**: Handle outliers with different logic
+    
+    **Best practices:**
+    - Don't blindly remove all flagged points
+    - Document decisions about outlier treatment
+    - Check domain experts for context
+    - Some algorithms (tree-based) handle outliers naturally
+    """)
     
     if summary.numeric_cols:
         cols_a = st.multiselect(
@@ -430,8 +605,56 @@ with tab4:
         """)
 
 with tab5:
-    st.subheader("🧪 Statistical Hypothesis Tests")
-    st.caption("Test relationships and differences between variables")
+    st.markdown("## 🧪 Step 5: Statistical Hypothesis Testing")
+    st.markdown("""
+    **📚 Understanding Statistical Tests:**
+    
+    **What is hypothesis testing?**
+    A formal method to determine if observed patterns are statistically significant (not due to random chance).
+    
+    **Key concepts:**
+    - **Null Hypothesis (H0)**: "No effect" / "No difference" / "No relationship"
+    - **Alternative Hypothesis (H1)**: "There IS an effect/difference/relationship"
+    - **P-value**: Probability of seeing these results if H0 is true
+      - **< 0.05**: Reject H0, result is "statistically significant" ✅
+      - **≥ 0.05**: Fail to reject H0, not enough evidence
+    - **α (alpha)**: Significance level, typically 0.05 (5% risk of false positive)
+    
+    **When to use each test:**
+    
+    🔹 **Normality Test (Shapiro-Wilk)**
+    - **Purpose**: Check if data follows normal distribution
+    - **When**: Before using parametric tests (t-test, ANOVA)
+    - **Interpretation**: p > 0.05 → Normal; p < 0.05 → Not normal
+    - **If not normal**: Use non-parametric tests or transformations
+    
+    🔹 **T-Test (Independent Samples)**
+    - **Purpose**: Compare means of 2 groups
+    - **Example**: Average salary of men vs women
+    - **Assumptions**: Normal distribution, independent samples
+    - **Interpretation**: p < 0.05 → Groups have significantly different means
+    
+    🔹 **ANOVA (One-Way)**
+    - **Purpose**: Compare means across 3+ groups
+    - **Example**: Test scores across multiple schools
+    - **Interpretation**: p < 0.05 → At least one group differs
+    - **Follow-up**: If significant, use post-hoc tests to find which pairs differ
+    
+    🔹 **Chi-Square Test**
+    - **Purpose**: Test relationship between categorical variables
+    - **Example**: Is gender related to product preference?
+    - **Interpretation**: p < 0.05 → Variables are dependent (associated)
+    
+    🔹 **Correlation Test (Pearson)**
+    - **Purpose**: Test if correlation is significant (not just by chance)
+    - **Interpretation**: p < 0.05 → Correlation is real, not random
+    
+    **⚠️ Important caveats:**
+    - **Statistical significance ≠ practical importance**: p < 0.05 with tiny effect may not matter
+    - **Multiple testing**: Running many tests increases false positives (consider corrections)
+    - **Sample size matters**: Very large samples can find "significant" trivial effects
+    - **Context is key**: Always interpret results with domain knowledge
+    """)
     
     test_type = st.radio(
         "Select test type",
@@ -1126,7 +1349,26 @@ with tab8:
     else:
         st.info("No numeric columns to analyze")
 
-sidebar_dataset_status(raw_df, clean_df)
-
 # Page navigation
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="What is EDA?",
+    explanation=(
+        "Exploratory Data Analysis helps you understand data quality, distributions, relationships, and anomalies before modeling. "
+        "Use EDA to decide cleaning steps, feature engineering, and whether your dataset fits the task."
+    ),
+    real_world_example=(
+        "Customer churn: EDA shows missing contract dates, skewed tenure, and correlation between support calls and churn. "
+        "You decide to impute dates, cap outliers, and include interactions before training."
+    ),
+)
+beginner_tip("Tip: Focus on patterns, not perfection — EDA guides decisions, it doesn't prove causality.")
+common_mistakes_panel({
+    "Confusing correlation with causation": "Use domain knowledge and experiments to confirm causes.",
+    "Ignoring missingness patterns": "Missing not at random can bias results — inspect by group.",
+    "Overfitting conclusions to small samples": "Validate insights on holdout data or with statistical tests.",
+    "Skipping outlier review": "Extreme values can distort models — consider clipping or robust methods.",
+    "Not checking data types": "Incorrect types break aggregations and charts — fix early.",
+})
+
 page_navigation("2")

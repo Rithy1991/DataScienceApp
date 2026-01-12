@@ -285,11 +285,37 @@ def train_tabular(
 
 
 def predict_tabular(model, df: pd.DataFrame) -> Tuple[np.ndarray, Optional[np.ndarray]]:
-    preds = model.predict(df)
-    proba = None
-    if hasattr(model, "predict_proba"):
-        try:
-            proba = model.predict_proba(df)
-        except Exception:
-            proba = None
-    return preds, proba
+    """Make predictions on a dataframe using a trained model.
+    
+    Args:
+        model: Trained sklearn model or pipeline
+        df: Input dataframe for prediction
+        
+    Returns:
+        Tuple of (predictions, probabilities or None)
+    """
+    try:
+        # Handle empty dataframe
+        if df.empty:
+            raise ValueError("Input dataframe is empty")
+        
+        # Convert all columns to numeric where possible for safety
+        df_pred = df.copy()
+        for col in df_pred.columns:
+            if pd.api.types.is_object_dtype(df_pred[col]):
+                # Try to convert string inputs to appropriate types
+                try:
+                    df_pred[col] = pd.to_numeric(df_pred[col], errors='coerce')
+                except:
+                    pass  # Keep as object if conversion fails
+        
+        preds = model.predict(df_pred)
+        proba = None
+        if hasattr(model, "predict_proba"):
+            try:
+                proba = model.predict_proba(df_pred)
+            except Exception:
+                proba = None
+        return preds, proba
+    except Exception as e:
+        raise ValueError(f"Prediction failed: {str(e)}")

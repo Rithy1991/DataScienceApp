@@ -17,6 +17,12 @@ from src.core.config import load_config
 from src.core.logging_utils import setup_logging, log_event
 from src.core.state import get_clean_df, get_df
 from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    concept_explainer,
+    common_mistakes_panel,
+)
 from src.core.styles import inject_custom_css
 from src.core.ai_helper import ai_help_button, ai_interpretation_box, ai_sidebar_assistant
 from src.storage.history import add_event
@@ -87,7 +93,7 @@ def _workflow_guide() -> None:
                 "📊 Scale/normalize numeric features",
                 "🎯 Select most important features"
             ],
-            "page": "12_Feature_Engineering"
+            "page": "4_Feature_Engineering"
         },
         "4️⃣ Model Training": {
             "description": "Build ML models",
@@ -97,7 +103,7 @@ def _workflow_guide() -> None:
                 "🔧 Tune hyperparameters",
                 "📈 Evaluate performance metrics"
             ],
-            "page": "3_Tabular_Machine_Learning"
+            "page": "5_Tabular_Machine_Learning"
         },
         "5️⃣ Predictions": {
             "description": "Generate predictions",
@@ -107,7 +113,7 @@ def _workflow_guide() -> None:
                 "🔍 Analyze prediction confidence",
                 "💾 Export predictions"
             ],
-            "page": "6_Prediction_Inference"
+            "page": "9_Prediction"
         },
         "6️⃣ Visualization": {
             "description": "Tell the story",
@@ -117,7 +123,7 @@ def _workflow_guide() -> None:
                 "📉 Show trends and patterns",
                 "🎯 Communicate findings"
             ],
-            "page": "5_Visualization"
+            "page": "7_Visualization"
         }
     }
     
@@ -373,6 +379,25 @@ def main() -> None:
             st.warning("📊 Load a dataset first to get insights")
     
     # Navigation
+    st.divider()
+    standard_section_header("Learning Guide & Best Practices", "🎓")
+    concept_explainer(
+        title="How to Use DS Assistant",
+        explanation=(
+            "This assistant helps you plan and execute an end-to-end data science project: explore data, clean, engineer features, train models, and deploy predictions."
+        ),
+        real_world_example=(
+            "Retail analytics: Start with EDA to understand sales drivers, clean missing SKU attributes, engineer promotion flags, train a regression model, and deploy weekly forecasts."
+        ),
+    )
+    beginner_tip("Tip: Start simple — validate a baseline model before adding complexity.")
+    common_mistakes_panel({
+        "Skipping EDA": "Without exploring data, you risk modeling noise or bias.",
+        "No clear target": "Define what you want to predict and why.",
+        "Over-complex pipelines": "Complexity increases maintenance cost — iterate in small steps.",
+        "Ignoring monitoring": "Plan metrics to track in production from day one.",
+    })
+
     page_navigation("1")
 
 

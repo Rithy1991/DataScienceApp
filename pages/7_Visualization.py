@@ -8,15 +8,22 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
+import numpy as np
 
 from src.core.config import load_config
-from src.core.state import get_clean_df, get_df
+from src.core.state import get_clean_df, get_df, set_df, set_clean_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import render_stat_card, inject_custom_css
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import enhanced_chart
 from src.core.ai_helper import ai_sidebar_assistant, ai_interpretation_box
 from src.core.platform_ui import module_section
+from src.core.standardized_ui import (
+    standard_section_header,
+    concept_explainer,
+    beginner_tip,
+    common_mistakes_panel,
+)
 
 
 config = load_config()
@@ -66,6 +73,26 @@ clean_df = get_clean_df(st.session_state)
 sidebar_dataset_status(raw_df, clean_df)
 
 df = clean_df if clean_df is not None else raw_df
+
+if df is None:
+    st.warning("No data loaded. Quickly load a sample to try the charts.")
+    if st.button("Load sample dataset (Retail Sales)", type="primary", use_container_width=True):
+        sample = pd.DataFrame(
+            {
+                "date": pd.date_range("2024-01-01", periods=120, freq="D"),
+                "store": np.random.choice(["A", "B", "C"], size=120),
+                "promo": np.random.choice([0, 1], size=120, p=[0.7, 0.3]),
+                "sales": np.random.normal(loc=11000, scale=2800, size=120).round(0),
+                "transactions": np.random.normal(loc=380, scale=80, size=120).round(0),
+            }
+        )
+        set_df(st.session_state, sample, source="sample_retail")
+        set_clean_df(st.session_state, sample.copy())
+        st.success("Sample dataset loaded—scroll to build charts.")
+        raw_df = sample
+        clean_df = sample
+        df = sample
+
 if df is None:
     st.info("Load data in Data Cleaning page first.")
     st.stop()
@@ -574,4 +601,23 @@ with tab5:
     """)
 
 # Page navigation
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="Data Visualization",
+    explanation=(
+        "Visualization communicates insights clearly. Choose chart types based on data and audience, and annotate to provide context."
+    ),
+    real_world_example=(
+        "Customer segmentation: Use scatter plots with clusters, bar charts for segment sizes, and annotated line charts for trends."
+    ),
+)
+beginner_tip("Tip: One message per chart — reduce clutter and highlight what matters.")
+common_mistakes_panel({
+    "Misleading axes": "Always start at zero for bars; label units & scales.",
+    "Too many categories": "Aggregate or filter to top-N for readability.",
+    "Confusing colors": "Use consistent palettes; avoid red/green conflicts.",
+    "Missing context": "Add titles, captions, and sources.",
+    "Overanimated graphics": "Animation can distract; use sparingly.",
+})
+
 page_navigation("7")

@@ -13,7 +13,7 @@ st.set_page_config(page_title="DataScope Pro", layout="wide", initial_sidebar_st
 from src.core.config import load_config
 from src.core.logging_utils import log_event, setup_logging
 from src.core.state import get_clean_df, get_df, set_clean_df, set_df
-from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation, render_footer
 from src.core.styles import inject_custom_css, render_stat_card
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import smart_data_preview, auto_data_profile, success_message_with_next_steps, data_quality_badge
@@ -194,3 +194,6 @@ if _in_streamlit_runtime():
 
 # Page navigation
 page_navigation("0")
+
+# Redundant footer call to guarantee attribution on Home without duplication
+render_footer()

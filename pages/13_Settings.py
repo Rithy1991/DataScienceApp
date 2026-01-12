@@ -48,7 +48,14 @@ clean_df = get_clean_df(st.session_state)
 sidebar_dataset_status(raw_df, clean_df)
 
 # Create tabs for better organization
-tab1, tab2, tab3, tab4 = st.tabs(["⚙️ Application Settings", "🔐 Secrets Management", "📦 Dependencies", "🌍 Environment"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "⚙️ Application Settings",
+    "🔐 Secrets Management",
+    "📦 Dependencies",
+    "🌍 Environment",
+    "🩺 System Check",
+    "🛠️ Troubleshooting"
+])
 
 raw = dict(config_obj.raw)
 
@@ -318,6 +325,63 @@ with tab4:
         
         with [col1, col2, col3][i % 3]:
             st.write(f"**{display_name}**: {status}")
+
+
+# ===== TAB 5: SYSTEM CHECK =====
+with tab5:
+    st.subheader("🩺 System Readiness")
+    st.caption("Quick health check so beginners know what to install or fix before training.")
+
+    def _check_pkg(name: str) -> bool:
+        try:
+            __import__(name)
+            return True
+        except Exception:
+            return False
+
+    checks = [
+        ("Python", True, sys.version.split()[0]),
+        ("Streamlit", True, st.__version__),
+        ("torch", _check_pkg("torch"), "Required for Transformer/TFT"),
+        ("transformers", _check_pkg("transformers"), "Required for AI Insights (local)"),
+        ("pytorch-lightning", _check_pkg("pytorch_lightning"), "Needed for TFT"),
+    ]
+
+    colA, colB = st.columns(2)
+    for i, (label, ok, note) in enumerate(checks):
+        badge = "✅" if ok else "❌"
+        msg = f"{badge} {label} — {note}"
+        with colA if i % 2 == 0 else colB:
+            if ok:
+                st.success(msg)
+            else:
+                st.error(msg)
+
+    st.divider()
+    st.subheader("Memory & Disk Tips")
+    st.markdown(
+        "- Keep forecast horizons small on low-memory plans.\n"
+        "- Free space before downloading large models.\n"
+        "- For slow installs on Streamlit Cloud, add optional deps to requirements.txt and redeploy."
+    )
+
+
+# ===== TAB 6: TROUBLESHOOTING =====
+with tab6:
+    st.subheader("🛠️ Common Issues & Fixes")
+    st.caption("Copy-paste fixes for the most common beginner errors.")
+
+    st.markdown("**Install errors**")
+    st.code("pip install torch transformers\npip install pytorch-forecasting pytorch-lightning", language="bash")
+
+    st.markdown("**Model download or OOM**")
+    st.write("Use smaller models (distil*) and shorter horizons; keep batch sizes small on free tiers.")
+
+    st.markdown("**API provider errors**")
+    st.write("Set OPENAI_BASE_URL and OPENAI_API_KEY in Streamlit secrets or environment; redeploy after updating.")
+
+    st.markdown("**Date errors in forecasts**")
+    st.write("Ensure your time column parses as datetime in Cleaning; comparison now normalizes dates automatically.")
 
 # Page navigation
 page_navigation("13")

@@ -21,6 +21,11 @@ from src.core.ui import sidebar_dataset_status, instruction_block, page_navigati
 from src.core.styles import inject_custom_css
 from src.core.ai_helper import ai_sidebar_assistant
 from src.core.platform_ui import module_section
+from src.core.standardized_ui import (
+    standard_section_header,
+    beginner_tip,
+    common_mistakes_panel,
+)
 
 def _save_changes(new_df: pd.DataFrame, message: str = "Changes saved to clean dataset."):
     """Helper to save changes to session state."""
@@ -263,6 +268,15 @@ def main():
         _feature_creation(df)
         
     st.divider()
+    standard_section_header("Learning Guide & Best Practices", "🎓")
+    beginner_tip("Tip: Engineer features with the end-task in mind — classification vs regression may favor different transformations.")
+    common_mistakes_panel({
+        "One-hot on high-cardinality": "Explodes dimensionality. Prefer target/frequency encoding or hashing.",
+        "Scaling the target": "Scale features, not the label (unless special cases).",
+        "Leakage via global scaling": "Fit scalers on training split only in production pipelines.",
+        "Too many features": "Select informative features to reduce noise and overfitting.",
+        "Ignoring domain combinations": "Create interaction or ratio features that represent meaningful relationships.",
+    })
     page_navigation("4")
 
 if __name__ == "__main__":

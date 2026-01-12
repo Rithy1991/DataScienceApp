@@ -11,6 +11,12 @@ from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    concept_explainer,
+    beginner_tip,
+    common_mistakes_panel,
+)
 from src.core.styles import render_stat_card, inject_custom_css
 from src.storage.history import add_event
 
@@ -44,6 +50,14 @@ st.info(
     "Natural-language summaries and recommendations powered by local or API-hosted language models.",
     icon="ℹ️",
 )
+
+with st.expander("🧭 How to read the AI output (beginner friendly)", expanded=False):
+    st.markdown(
+        "- Start with the headline sentence; it tells you the main trend.\n"
+        "- Look for 2-3 bullet points with concrete facts (increases/decreases, segments).\n"
+        "- Use the action/next-step line to decide what to try next in your data or business.\n"
+        "- If something is unclear, lower the token count and ask for a simpler rephrase."
+    )
 
 raw_df = get_df(st.session_state)
 clean_df = get_clean_df(st.session_state)
@@ -170,6 +184,14 @@ with tab2:
         "📉 Risk Analysis": {
             "prompt": "Identify potential risks, vulnerabilities, and concerning patterns in the data. Prioritize risks by severity and likelihood, and suggest mitigation strategies.",
             "description": "Risk assessment with mitigation recommendations"
+        },
+        "🧒 Beginner-Friendly Summary": {
+            "prompt": "Explain the key patterns in very simple language. Use short sentences, avoid jargon, and end with one clear action I can take.",
+            "description": "Plain-language summary with one next step"
+        },
+        "🪜 Step-by-Step Explanation": {
+            "prompt": "Walk through the data step by step: 1) biggest increase/decrease, 2) any seasonality, 3) any weird values, 4) one action to try next week. Keep it concise.",
+            "description": "Guided, ordered explanation for beginners"
         }
     }
     
@@ -337,4 +359,23 @@ with tab4:
     """)
 
 # Page navigation
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="AI Explanations",
+    explanation=(
+        "Use AI to summarize patterns, generate hypotheses, and translate technical outputs into stakeholder language. Always verify and avoid overreliance."
+    ),
+    real_world_example=(
+        "Sales forecasting: AI explains seasonal spikes, promotion effects, and anomalies; analyst verifies with charts and business logs."
+    ),
+)
+beginner_tip("Tip: Provide context in prompts — include goal, audience, and constraints to get useful insights.")
+common_mistakes_panel({
+    "Treating AI output as truth": "Validate with data and domain knowledge.",
+    "Vague prompts": "Be specific about objectives, metrics, and constraints.",
+    "Ignoring bias": "AI can amplify data biases — review critically.",
+    "No reproducibility": "Keep prompt history and parameters for audits.",
+    "Overuse on raw data": "Clean and structure data first for better results.",
+})
+
 page_navigation("10")

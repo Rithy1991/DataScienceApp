@@ -81,7 +81,55 @@ def sidebar_dataset_status(df: Optional[pd.DataFrame], clean_df: Optional[pd.Dat
             st.caption(f"Clean dataset: {clean_df.shape[0]:,} rows × {clean_df.shape[1]:,} cols")
 
         st.divider()
+        # Beginner vs Advanced mode toggle (persisted in session)
+        if "ui_mode" not in st.session_state:
+            st.session_state.ui_mode = "Beginner"
+        st.selectbox(
+            "Interface Mode",
+            options=["Beginner", "Advanced"],
+            index=0 if st.session_state.ui_mode == "Beginner" else 1,
+            key="ui_mode",
+            help="Beginner mode simplifies options and adds explanations. Advanced shows full controls.",
+        )
         st.caption("Tip: Use Data Cleaning → save cleaned data to session.")
+
+        st.divider()
+        st.subheader("Guided Workflow")
+        _curated_sidebar_menu()
+
+
+def _curated_sidebar_menu() -> None:
+    """Render a curated sidebar menu in DS→ML learning order.
+    Uses explicit navigation to ensure consistent ordering regardless of filename prefixes.
+    """
+    menu_items = [
+        ("app.py", "🏠 Home"),
+        ("pages/1_DS_Assistant.py", "🤖 DS Assistant / Workflow"),
+        ("pages/2_Data_Analysis_EDA.py", "📊 Data Input & EDA"),
+        ("pages/3_Data_Cleaning.py", "🧼 Data Cleaning & Preprocessing"),
+        ("pages/4_Feature_Engineering.py", "🔨 Feature Engineering"),
+        ("pages/14_Classification_Learning.py", "🧑‍🎓 Classification Learning"),
+        ("pages/16_Regression_Learning.py", "🧑‍🎓 Regression Learning"),
+        ("pages/15_Clustering_Learning.py", "🧑‍🎓 Clustering Learning"),
+        ("pages/19_NLP_TFIDF_Sentiment.py", "🗣️ NLP: TF-IDF & Sentiment"),
+        ("pages/5_Tabular_Machine_Learning.py", "🎯 Tabular ML (Classical)"),
+        ("pages/6_Deep_Learning.py", "🧠 Deep Learning (Neural Networks)"),
+        ("pages/9_Prediction.py", "🎯 Prediction & Inference"),
+        ("pages/10_AI_Insights.py", "💡 AI Explanations & Insights"),
+        ("pages/7_Visualization.py", "🎨 Visualization Studio"),
+        ("pages/18_Sample_Report.py", "📄 Export & Reporting"),
+        ("pages/17_Demo_Workflow.py", "🚀 Demo Workflow"),
+        ("pages/12_DS_Academy.py", "🎓 Data Science Academy"),
+        ("pages/20_Supervised_Learning.py", "🧠 Supervised Learning"),
+        ("pages/21_Unsupervised_Learning.py", "🔍 Unsupervised Learning"),
+        ("pages/22_ML_Academy.py", "🎓 ML Academy 2.0"),
+        ("pages/23_ML_Platform_Studio.py", "💎 ML Platform Studio"),
+        ("pages/13_Settings.py", "⚙️ Settings"),
+    ]
+
+    for idx, (path, label) in enumerate(menu_items):
+        if st.button(label, key=f"curated_menu_{idx}", use_container_width=True):
+            st.switch_page(path)
 
 
 def page_navigation(current_page: str) -> None:
@@ -92,22 +140,30 @@ def page_navigation(current_page: str) -> None:
     """
     pages = {
         "0": ("app", "🏠 Home"),
-        "1": ("1_DS_Assistant", "🤖 DS Assistant"),
-        "2": ("2_Data_Analysis_EDA", "📊 Data Analysis / EDA"),
-        "3": ("3_Data_Cleaning", "🧼 Data Cleaning"),
+        "1": ("1_DS_Assistant", "🤖 DS Assistant / Workflow"),
+        "2": ("2_Data_Analysis_EDA", "📊 Data Input & EDA"),
+        "3": ("3_Data_Cleaning", "🧼 Data Cleaning & Preprocessing"),
         "4": ("4_Feature_Engineering", "🔨 Feature Engineering"),
-        "5": ("5_Tabular_Machine_Learning", "🎯 Tabular Machine Learning"),
-        "6": ("6_Deep_Learning", "⏰ Deep Learning"),
-        "7": ("7_Visualization", "🎨 Visualization"),
-        "8": ("8_Viz_Journal", "📓 Visualization Journal"),
-        "9": ("9_Prediction", "🎯 Prediction & Inference"),
-        "10": ("10_AI_Insights", "💡 AI Insights"),
-        "11": ("11_Model_Management", "📦 Model Management"),
-        "12": ("12_DS_Academy", "🎓 DS Academy"),
-        "13": ("13_Settings", "⚙️ Settings"),
+        "5": ("14_Classification_Learning", "🧑‍🎓 Classification Learning"),
+        "6": ("16_Regression_Learning", "🧑‍🎓 Regression Learning"),
+        "7": ("15_Clustering_Learning", "🧑‍🎓 Clustering Learning"),
+        "8": ("19_NLP_TFIDF_Sentiment", "🗣️ NLP: TF-IDF & Sentiment"),
+        "9": ("5_Tabular_Machine_Learning", "🎯 Tabular ML (Classical)"),
+        "10": ("6_Deep_Learning", "🧠 Deep Learning (Neural Networks)"),
+        "11": ("9_Prediction", "🎯 Prediction & Inference"),
+        "12": ("10_AI_Insights", "💡 AI Explanations & Insights"),
+        "13": ("7_Visualization", "🎨 Visualization Studio"),
+        "14": ("18_Sample_Report", "📄 Export & Reporting"),
+        "15": ("17_Demo_Workflow", "🚀 Demo Workflow"),
+        "16": ("12_DS_Academy", "🎓 Data Science Academy"),
+        "17": ("20_Supervised_Learning", "🧠 Supervised Learning"),
+        "18": ("21_Unsupervised_Learning", "🔍 Unsupervised Learning"),
+        "19": ("22_ML_Academy", "🎓 ML Academy 2.0"),
+        "20": ("23_ML_Platform_Studio", "💎 ML Platform Studio"),
+        "21": ("13_Settings", "⚙️ Settings"),
     }
-    
-    page_order = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"]
+    # Logical page order from beginner to advanced
+    page_order = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21"]
     
     if current_page not in page_order:
         return
@@ -141,3 +197,24 @@ def page_navigation(current_page: str) -> None:
                 # Home page uses app.py, others use pages/filename.py
                 page_path = f"{next_file}.py" if next_page == "0" else f"pages/{next_file}.py"
                 st.switch_page(page_path)
+
+    render_footer()
+
+
+def render_footer() -> None:
+    """Render a global page footnote with creator/design attribution."""
+    # Prevent duplicate rendering when called multiple times per page
+    if st.session_state.get("_footer_rendered", False):
+        return
+    st.session_state["_footer_rendered"] = True
+
+    st.markdown(
+        """
+        <div style="margin-top: 18px; padding: 12px; border-radius: 10px; background: #f8fafc; border: 1px solid #e9ecef;">
+            <div style="font-size: 13px; color: #6c757d; text-align: center;">
+                ✨ Created by <b>Mr. Hab Rithy</b> — attractive, modern design
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )

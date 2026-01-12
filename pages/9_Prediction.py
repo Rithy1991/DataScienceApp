@@ -13,11 +13,20 @@ st.set_page_config(page_title="DataScope Pro - Predictions", layout="wide", init
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
 
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
 from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.standardized_ui import (
+    standard_section_header,
+    concept_explainer,
+    beginner_tip,
+    common_mistakes_panel,
+)
 from src.core.styles import render_stat_card, inject_custom_css
 from src.data.loader import load_from_upload
 from src.ml.forecast_transformer import forecast_transformer, load_transformer_forecaster
@@ -148,6 +157,19 @@ with tab2:
                             
                             if rec.kind == "tabular":
                                 model = load(rec.artifact_path)
+                                
+                                # Handle missing required columns
+                                meta = rec.meta or {}
+                                trained_features = meta.get("features", [])
+                                upload_features = list(res.df.columns)
+                                
+                                if trained_features:
+                                    missing_cols = set(trained_features) - set(upload_features)
+                                    if missing_cols:
+                                        st.error(f"❌ Missing columns in uploaded data: {missing_cols}")
+                                        st.info(f"Expected columns: {trained_features}")
+                                        st.stop()
+                                
                                 preds, proba = predict_tabular(model, res.df)
                                 
                                 # Create output
@@ -284,9 +306,139 @@ with tab2:
         except Exception as e:
             st.error(f"File error: {str(e)}")
 
+    st.divider()
+    # NLP: TF-IDF Sentiment Batch Scoring
+    with st.expander("🗣️ NLP: TF-IDF Sentiment Batch Scoring", expanded=False):
+        st.caption("Train a simple TF-IDF + classifier and run batch predictions on text.")
+        nlp_df = st.session_state.get("nlp_df") or df_session
+        if nlp_df is None:
+            st.info("💡 Load or create a dataset first (see NLP page)")
+        else:
+            text_cols = [c for c in nlp_df.columns if nlp_df[c].dtype == object]
+            default_text = "processed_text" if "processed_text" in nlp_df.columns else (text_cols[0] if text_cols else None)
+            text_col = st.selectbox("Text column", options=text_cols, index=(text_cols.index(default_text) if default_text in text_cols else 0) if text_cols else None)
+            label_candidates = [c for c in nlp_df.columns if c != text_col]
+            label_col = st.selectbox("Label column", options=label_candidates) if label_candidates else None
+
+            if text_col is None or label_col is None:
+                st.warning("Select both text and label columns.")
+            else:
+                col_cfg1, col_cfg2, col_cfg3 = st.columns(3)
+                with col_cfg1:
+                    use_bigrams = st.checkbox("Include bigrams (1,2)", value=True, key="nlp_use_bigrams")
+                with col_cfg2:
+                    max_features = st.number_input("Max features", min_value=500, max_value=50000, value=5000, step=500, key="nlp_max_features")
+                with col_cfg3:
+                    remove_stop = st.checkbox("Remove English stopwords", value=True, key="nlp_remove_stop")
+
+                ngram_range = (1, 2) if use_bigrams else (1, 1)
+                stop_words = "english" if remove_stop else None
+
+                model_name = st.selectbox("Model", ["Logistic Regression", "Linear SVM (LinearSVC)"], key="nlp_model_name")
+                train_btn = st.button("Train NLP Model", type="primary", key="train_nlp")
+
+                if train_btn:
+                    try:
+                        X_text = nlp_df[text_col].astype(str).fillna("")
+                        y = nlp_df[label_col].astype(str).fillna("")
+                        vectorizer = TfidfVectorizer(ngram_range=ngram_range, stop_words=stop_words, max_features=int(max_features))
+                        X = vectorizer.fit_transform(X_text)
+                        if model_name == "Logistic Regression":
+                            model = LogisticRegression(C=1.0, max_iter=500)
+                            proba_supported = True
+                        else:
+                            model = LinearSVC(C=1.0)
+                            proba_supported = False
+                        model.fit(X, y)
+                        st.session_state["nlp_vectorizer"] = vectorizer
+                        st.session_state["nlp_model"] = model
+                        st.session_state["nlp_classes"] = getattr(model, "classes_", None)
+                        st.success("✅ NLP model trained and stored in session")
+                    except Exception as e:
+                        st.error(f"Training failed: {e}")
+
+                st.divider()
+                st.caption("Batch score new text with the trained NLP model")
+                upload_text = st.file_uploader("Upload CSV with a text column", type=["csv"], key="nlp_batch_upload")
+                if upload_text is not None and "nlp_model" in st.session_state and "nlp_vectorizer" in st.session_state:
+                    try:
+                        df_new = pd.read_csv(upload_text)
+                        text_cols_new = [c for c in df_new.columns if df_new[c].dtype == object]
+                        sel_text_new = st.selectbox("Text column in uploaded CSV", options=text_cols_new, key="nlp_text_new")
+                        if st.button("🚀 Run NLP Batch Prediction", type="primary", use_container_width=True, key="nlp_run_batch"):
+                            with st.spinner("Scoring text..."):
+                                vec = st.session_state["nlp_vectorizer"]
+                                mdl = st.session_state["nlp_model"]
+                                X_new = vec.transform(df_new[sel_text_new].astype(str).fillna(""))
+                                preds = mdl.predict(X_new)
+                                out = df_new.copy()
+                                out["prediction"] = preds
+                                st.success(f"✅ Scored {len(out)} rows")
+                                st.dataframe(out.head(100), use_container_width=True)
+                                st.download_button("📥 Download NLP predictions (CSV)", data=out.to_csv(index=False), file_name="nlp_predictions.csv", use_container_width=True)
+                                if hasattr(mdl, "predict_proba"):
+                                    proba = mdl.predict_proba(X_new)
+                                    proba_df = pd.DataFrame(proba, columns=st.session_state.get("nlp_classes", []))
+                                    st.subheader("Prediction Probabilities")
+                                    st.dataframe(proba_df.head(100), use_container_width=True)
+                                    st.download_button("📥 Download NLP probabilities (CSV)", data=proba_df.to_csv(index=False), file_name="nlp_probabilities.csv", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Batch scoring failed: {e}")
+
 with tab3:
     st.subheader("Real-time Single Prediction")
     st.caption("Enter feature values to get immediate prediction")
+
+    # NLP realtime scoring (independent of selected registry model)
+    with st.expander("🗣️ NLP: Realtime Text Scoring", expanded=False):
+        if "nlp_model" in st.session_state and "nlp_vectorizer" in st.session_state:
+            user_text = st.text_area("Enter text", value="I absolutely love this product!", height=100, key="nlp_realtime_text")
+            if st.button("Predict Sentiment (NLP)", type="primary", use_container_width=True, key="nlp_realtime_button"):
+                try:
+                    vec = st.session_state["nlp_vectorizer"]
+                    mdl = st.session_state["nlp_model"]
+                    X_user = vec.transform([str(user_text)])
+                    pred = mdl.predict(X_user)[0]
+                    st.success(f"Predicted: {pred}")
+                    st.metric("Predicted class", str(pred))
+                    if hasattr(mdl, "predict_proba"):
+                        probs = mdl.predict_proba(X_user)[0]
+                        classes = getattr(mdl, "classes_", [])
+                        st.caption("Class probabilities:")
+                        proba_dict = {cls: float(p) for cls, p in zip(classes, probs)}
+                        st.write(proba_dict)
+                        # Confidence metric
+                        st.metric("Confidence", f"{max(probs):.1%}")
+                        # Probability bar chart
+                        proba_df = pd.DataFrame(list(proba_dict.items()), columns=["Class", "Probability"])
+                        fig = px.bar(
+                            proba_df,
+                            x="Class",
+                            y="Probability",
+                            title="Realtime Prediction Probability Distribution",
+                            color="Probability",
+                            color_continuous_scale="Viridis"
+                        )
+                        st.plotly_chart(fig, use_container_width=True)
+                    # Log event if registry selection exists
+                    try:
+                        add_event(
+                            config.history_db_path,
+                            "predict_nlp",
+                            f"Realtime NLP prediction: {pred}",
+                            json.dumps({"mode": "realtime_nlp", "prediction": str(pred), "text": user_text})
+                        )
+                        log_event(
+                            config.logging_dir,
+                            "predict_nlp",
+                            {"mode": "realtime_nlp", "prediction": str(pred)}
+                        )
+                    except Exception:
+                        pass
+                except Exception as e:
+                    st.error(f"Prediction failed: {e}")
+        else:
+            st.info("💡 Train an NLP model first in the Batch tab (TF-IDF + Logistic Regression/LinearSVC)")
     
     if rec.kind == "tabular":
         if df_session is None:
@@ -613,4 +765,23 @@ with tab4:
             st.info("Load data to view prediction history trends")
 
 # Page navigation
-page_navigation("9")
+    standard_section_header("Learning Guide & Best Practices", "🎓")
+    concept_explainer(
+        title="Prediction & Inference",
+        explanation=(
+            "Use trained models to infer outcomes on new data. Monitor confidence, thresholds, and drift over time to maintain reliability."
+        ),
+        real_world_example=(
+            "Fraud detection: Set probability threshold for alerts, log predictions, track false positives, and recalibrate thresholds quarterly."
+        ),
+    )
+    beginner_tip("Tip: Calibrate classification probabilities (Platt scaling or isotonic) for more reliable decision thresholds.")
+    common_mistakes_panel({
+        "Using training metrics in production": "Evaluate on holdout and continuously monitor real-world performance.",
+        "Ignoring input schema": "Validate feature types and ranges to prevent runtime errors.",
+        "No threshold tuning": "Default threshold (0.5) may not match business costs — tune it.",
+        "Overlooking calibration": "Uncalibrated probabilities mislead decision makers.",
+        "Not tracking drift": "Monitor confidence and error trends; retrain when performance degrades.",
+    })
+
+    page_navigation("9")

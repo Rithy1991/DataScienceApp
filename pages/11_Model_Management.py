@@ -19,6 +19,12 @@ from src.core.ui import sidebar_dataset_status, instruction_block, page_navigati
 from src.core.styles import render_stat_card, inject_custom_css
 from src.storage.history import add_event, list_events
 from src.storage.model_registry import delete_model, list_models
+from src.core.standardized_ui import (
+    standard_section_header,
+    concept_explainer,
+    beginner_tip,
+    common_mistakes_panel,
+)
 
 
 config = load_config()
@@ -452,4 +458,23 @@ with tab4:
         )
 
 # Page navigation
+standard_section_header("Learning Guide & Best Practices", "🎓")
+concept_explainer(
+    title="Model Management",
+    explanation=(
+        "Track models across their lifecycle: training, evaluation, deployment, and monitoring. Version artifacts and metadata for reproducibility."
+    ),
+    real_world_example=(
+        "Credit scoring: Save hyperparameters, training data snapshot, metrics, and model file per version; audit decisions and monitor drift."
+    ),
+)
+beginner_tip("Tip: Log inputs, outputs, and context (who/when/why) for every model run to enable trustworthy audits.")
+common_mistakes_panel({
+    "No metadata": "Without configs and metrics, models are irreproducible.",
+    "Untracked datasets": "Keep dataset hashes or snapshots for provenance.",
+    "No monitoring": "Track performance and drift in production.",
+    "Ad-hoc deployments": "Use versioned artifacts and controlled releases.",
+    "Missing rollback plan": "Plan for reverting to a safe previous version.",
+})
+
 page_navigation("11")
