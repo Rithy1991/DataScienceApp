@@ -747,11 +747,33 @@ with st.expander("📦 Batch Predictions", expanded=False):
             model_name = st.selectbox("Model", list(st.session_state.platform_models.keys()), key="pred_model_batch")
             model = st.session_state.platform_models[model_name]
             # Improved feature validation before prediction
-            trained_features = getattr(model, "feature_names_in_", None)
-            if trained_features is None and hasattr(model, "meta"):
-                trained_features = model.meta.get("features", None)
+            def _expected_columns(m):
+                meta = getattr(m, "meta", {}) or {}
+                if hasattr(m, "feature_names_in_"):
+                    return [str(c) for c in m.feature_names_in_]
+                if isinstance(meta, dict) and meta.get("features"):
+                    return [str(c) for c in meta.get("features", [])]
+                pre = None
+                if hasattr(m, "named_steps") and "preprocessor" in m.named_steps:
+                    pre = m.named_steps.get("preprocessor")
+                if pre is not None:
+                    if hasattr(pre, "feature_names_in_"):
+                        return [str(c) for c in pre.feature_names_in_]
+                    if hasattr(pre, "transformers_"):
+                        cols = []
+                        for _, _, col_list in pre.transformers_:
+                            if col_list is None:
+                                continue
+                            if isinstance(col_list, (list, tuple, np.ndarray, pd.Index)):
+                                cols.extend([str(c) for c in col_list])
+                        if cols:
+                            return cols
+                return None
+
+            trained_features = _expected_columns(model)
             if trained_features is not None:
-                missing_cols = set(trained_features) - set(df_batch.columns)
+                upload_cols = [str(c) for c in df_batch.columns]
+                missing_cols = set(trained_features) - set(upload_cols)
                 if missing_cols:
                     st.error(f"\u274c Missing columns in uploaded data: {missing_cols}")
                     st.info(f"Expected columns: {list(trained_features)}")
