@@ -17,6 +17,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Suppress scikit-learn warnings for educational context (imbalanced data)
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._ranking')
+
 from sklearn.metrics import (
     # Classification
     confusion_matrix,

@@ -15,14 +15,12 @@ from src.core.standardized_ui import (
 )
 from src.data.samples import describe_sample_dataset, get_sample_datasets
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_sidebar_assistant
 from src.academy.real_world_labs import LABS, get_lab
 
 # --- Page Setup ---
 st.set_page_config(page_title="DataScope Pro - Academy", layout="wide", initial_sidebar_state="expanded")
 config = load_config()
 inject_custom_css()
-ai_sidebar_assistant()
 
 # --- Header ---
 app_header(

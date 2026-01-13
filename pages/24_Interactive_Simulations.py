@@ -50,7 +50,7 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
             'Column': df.columns,
             'Type': df.dtypes.astype(str)
         })
-        st.dataframe(dtype_summary, use_container_width=True, hide_index=True)
+        st.dataframe(dtype_summary, width="stretch", hide_index=True)
     
     # Missing values
     missing = df.isnull().sum()
@@ -62,13 +62,13 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
                 'Count': missing[missing > 0].values,
                 '% Missing': missing_pct[missing > 0].values
             })
-            st.dataframe(missing_df, use_container_width=True, hide_index=True)
+            st.dataframe(missing_df, width="stretch", hide_index=True)
     
     # Numeric summary
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     if len(numeric_cols) > 0:
         with st.sidebar.expander("Numeric Summary", expanded=False):
-            st.dataframe(df[numeric_cols].describe().round(3), use_container_width=True)
+            st.dataframe(df[numeric_cols].describe().round(3), width="stretch")
     
     # Class distribution (for first non-numeric or last column)
     cat_cols = df.select_dtypes(include=['object']).columns
@@ -80,7 +80,7 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
     elif len(numeric_cols) > 0:
         last_numeric = numeric_cols[-1]
         with st.sidebar.expander(f"Distribution: {last_numeric}", expanded=False):
-            st.histogram(df[last_numeric].dropna(), use_container_width=True)
+            st.histogram(df[last_numeric].dropna(), width="stretch")
 
 
 def _make_2d_dataset(kind: str, n_samples: int, noise: float, random_state: int):
@@ -156,7 +156,7 @@ def _plot_decision_boundary(model, X: np.ndarray, y: np.ndarray, title: str = "D
         height=520,
         margin=dict(l=10, r=10, t=50, b=10),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def main():
@@ -445,7 +445,7 @@ def main():
                             colorscale='Blues'
                         )
                         fig.update_layout(title="Confusion Matrix", width=500, height=500)
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     
                     if show_roc and n_classes == 2:
                         st.write("### 📈 ROC Curve (Binary Classification)")
@@ -462,7 +462,7 @@ def main():
                                                 line=dict(dash='dash'), name='Random'))
                         fig.update_layout(title="ROC Curve", xaxis_title="False Positive Rate",
                                         yaxis_title="True Positive Rate")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     
                     if show_details:
                         st.write("### 📋 Detailed Classification Report")
@@ -622,7 +622,7 @@ def main():
                             yaxis_title="Predicted Values",
                             title="Prediction Accuracy"
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     
                     if show_details:
                         st.write("### 📉 Residuals Analysis")
@@ -644,7 +644,7 @@ def main():
                                 xaxis_title="Predicted Values",
                                 yaxis_title="Residuals"
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch")
                         
                         with col2:
                             fig = go.Figure()
@@ -654,7 +654,7 @@ def main():
                                 xaxis_title="Residuals",
                                 yaxis_title="Frequency"
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch")
                     
                     if show_feature_importance and hasattr(model, 'feature_importances_'):
                         st.write("### 🎯 Feature Importance")
@@ -666,7 +666,7 @@ def main():
                         import plotly.express as px
                         fig = px.bar(importance, x='Feature', y='Importance', 
                                     title="Feature Importance Ranking")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
 
                     render_tasks(
                         "regression",
@@ -751,7 +751,7 @@ def main():
                         yaxis_title="Value",
                         hovermode='x unified'
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     if show_components:
                         st.write("### Series Statistics")
@@ -978,7 +978,7 @@ def main():
                     yaxis_title="Score",
                     height=480,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 df = pd.DataFrame(
                     {
@@ -989,7 +989,7 @@ def main():
                         "cv_std": test_std,
                     }
                 )
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width="stretch")
 
                 render_tasks(
                     "learning_curves",
@@ -1062,7 +1062,7 @@ def main():
                     yaxis_title="MSE",
                     height=480,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 render_tasks(
                     "bias_variance",
@@ -1177,7 +1177,7 @@ def main():
                     colorscale="Blues",
                 )
                 fig.update_layout(height=420)
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 if show_pr and proba is not None:
                     st.write("### 📈 Precision–Recall Curve")
@@ -1186,7 +1186,7 @@ def main():
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(x=r, y=p, mode="lines", name=f"AP={ap:.3f}"))
                     fig.update_layout(xaxis_title="Recall", yaxis_title="Precision", height=420)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
 
                 render_tasks(
                     "imbalanced",
@@ -1278,7 +1278,7 @@ def main():
                 st.dataframe(pd.DataFrame({"fold": np.arange(1, len(scores) + 1), score_name: scores}))
 
                 fig = px.box(scores, points="all", title=f"CV score distribution ({score_name})")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 st.markdown(
                     render_stat_card("Mean", f"{scores.mean():.3f}", "📌"), unsafe_allow_html=True
@@ -1354,7 +1354,7 @@ def main():
                     fig = go.Figure()
                     fig.add_trace(go.Scatter(y=loss_curve, mode="lines", name="loss"))
                     fig.update_layout(title="Training loss curve", xaxis_title="Iteration", yaxis_title="Loss")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 except Exception:
                     pass
 
@@ -1466,9 +1466,9 @@ def main():
                     scores.append({"model": name, metric_name: float(scorer(y_test, pred))})
 
                 df = pd.DataFrame(scores).sort_values(metric_name, ascending=False)
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width="stretch")
                 fig = px.bar(df, x="model", y=metric_name, title=f"Model comparison ({metric_name})")
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
 
                 render_tasks(
                     "ensemble",

@@ -19,7 +19,6 @@ from src.core.config import load_config
 from src.core.state import get_clean_df, get_df
 from src.core.styles import inject_custom_css, render_stat_card
 from src.core.ui import app_header, instruction_block, page_navigation, sidebar_dataset_status
-from src.core.ai_helper import ai_sidebar_assistant
 
 
 def _plot(fig, key: str) -> None:
@@ -120,7 +119,6 @@ def _generate_forecast_data(df: pd.DataFrame, horizon: int = 30) -> tuple[pd.Dat
 # ===========================
 config = load_config()
 inject_custom_css()
-ai_sidebar_assistant()
 
 # ===========================
 # Header

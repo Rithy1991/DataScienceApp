@@ -383,10 +383,11 @@ class SimulationExporter:
                 <h2 class="section-title">💡 Insights & Explanations</h2>
 """
             for title, content in explanations.items():
+                content_html = str(content).replace("\n", "<br>")
                 html += f"""
                 <div class="explanation">
                     <h3>{title.replace('_', ' ').title()}</h3>
-                    <p>{content.replace('\n', '<br>')}</p>
+                    <p>{content_html}</p>
                 </div>
 """
             html += """

@@ -1,32 +1,35 @@
 #!/usr/bin/env python3
+"""Replace Streamlit's deprecated `use_container_width` with the new `width`.
+
+Mapping:
+- use_container_width=True  -> width="stretch"
+- use_container_width=False -> width="content"
+
+This script is intentionally conservative and only replaces explicit True/False.
 """
-Script to replace deprecated use_container_width parameter with new width parameter
-"""
-import os
+
 import re
 from pathlib import Path
 
-# Get the workspace root directory
+
 workspace_root = Path(__file__).parent
 
-def fix_file(filepath):
-    """Replace use_container_width in a single file."""
+
+_RE_TRUE = re.compile(r"\buse_container_width\s*=\s*True\b")
+_RE_FALSE = re.compile(r"\buse_container_width\s*=\s*False\b")
+
+
+def fix_file(filepath: Path) -> bool:
+    """Replace `use_container_width` occurrences in a single file."""
     try:
-        with open(filepath, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
+        content = filepath.read_text(encoding="utf-8")
         original_content = content
-        
-        # Replace width="stretch" with width="stretch"
-        content = content.replace("width="stretch"", "width="stretch"")
-        
-        # Replace width="content" with width='content'
-        content = content.replace("width="content"", "width='content'")
-        
-        # Only write if there were changes
+
+        content = _RE_TRUE.sub('width="stretch"', content)
+        content = _RE_FALSE.sub('width="content"', content)
+
         if content != original_content:
-            with open(filepath, 'w', encoding='utf-8') as f:
-                f.write(content)
+            filepath.write_text(content, encoding="utf-8")
             return True
         return False
     except Exception as e:
@@ -39,13 +42,16 @@ def main():
     
     # Find all Python files
     for py_file in workspace_root.rglob("*.py"):
-        # Skip this script itself and any __pycache__ or .venv directories
-        if (py_file.name == "fix_deprecation.py" or 
-            "__pycache__" in str(py_file) or
-            ".venv" in str(py_file) or
-            "venv" in str(py_file)):
+        # Skip this script itself and any environments/caches.
+        py_file_str = str(py_file)
+        if (
+            py_file.name == "fix_deprecation.py"
+            or "__pycache__" in py_file_str
+            or "/.venv/" in py_file_str
+            or "/venv/" in py_file_str
+        ):
             continue
-        
+
         if fix_file(py_file):
             files_modified.append(py_file)
             print(f"✓ Modified: {py_file.relative_to(workspace_root)}")

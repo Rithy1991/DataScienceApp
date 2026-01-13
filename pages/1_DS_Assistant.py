@@ -24,7 +24,6 @@ from src.core.standardized_ui import (
     common_mistakes_panel,
 )
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_help_button, ai_interpretation_box, ai_sidebar_assistant
 from src.storage.history import add_event
 
 
@@ -309,9 +308,6 @@ def main() -> None:
     logger = setup_logging(config.logging_dir, config.logging_level)
     
     inject_custom_css()
-    
-    # Add AI sidebar assistant
-    ai_sidebar_assistant()
     
     app_header(
         config,

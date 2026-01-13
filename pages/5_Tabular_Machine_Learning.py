@@ -29,7 +29,6 @@ from src.core.standardized_ui import (
 from src.core.styles import inject_custom_css
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import smart_metric_card, comparison_table, success_message_with_next_steps, enhanced_chart
-from src.core.ai_helper import ai_help_button, ai_interpretation_box, inline_ai_help, ai_sidebar_assistant, create_ai_explanation_sections
 from src.ml.tabular import train_tabular
 from src.storage.history import add_event
 from src.storage.model_registry import register_model
@@ -95,9 +94,6 @@ app_header(
     subtitle="Train and compare models for classification or regression on row-and-column data",
     icon="🤖"
 )
-
-# Add AI sidebar assistant for contextual help
-ai_sidebar_assistant()
 
 instruction_block(
     "How to use this page",

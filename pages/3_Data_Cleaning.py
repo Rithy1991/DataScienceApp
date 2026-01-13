@@ -23,12 +23,43 @@ from src.core.standardized_ui import (
     metric_card,
 )
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_sidebar_assistant
 from src.core.platform_ui import module_section
+from src.core.cleaning_report_state import (
+    initialize_cleaning_report,
+    reset_cleaning_report,
+    add_cleaning_action,
+    set_before_metrics,
+    set_after_metrics,
+    get_cleaning_report,
+    get_report_summary,
+    export_report_json,
+    export_report_csv,
+    export_report_markdown,
+)
+from src.core.flow_guidance import render_step_guidance, render_next_step_button
 
-def _save_changes(new_df: pd.DataFrame, message: str):
-    """Save changes to clean dataframe state."""
+def _save_changes(new_df: pd.DataFrame, message: str, action_name: str = None, action_desc: str = None, metrics: dict = None):
+    """Save changes to clean dataframe state and log to report.
+    
+    Args:
+        new_df: The updated DataFrame to save.
+        message: Toast notification message.
+        action_name: Name of the action (e.g., "missing_imputation") for report logging.
+        action_desc: Description of the action for the report.
+        metrics: Dict of metrics to log with the action.
+    """
     set_clean_df(st.session_state, new_df)
+    
+    # Log to cleaning report if action details provided
+    if action_name and action_desc:
+        initialize_cleaning_report(st.session_state)
+        add_cleaning_action(
+            st.session_state,
+            action_name=action_name,
+            action_description=action_desc,
+            metrics=metrics or {}
+        )
+    
     st.toast(message, icon="✅")
     st.rerun()
 
@@ -242,7 +273,24 @@ def _missing_values_handler(df: pd.DataFrame, original_df: pd.DataFrame):
             missing_after = temp_df[col_to_fix].isnull().sum()
             st.success(f"✅ Completed: {missing_before} → {missing_after} missing values")
             status.update(label="✅ Complete", state="complete")
-            _save_changes(temp_df, f"Fixed missing values in {col_to_fix}")
+            
+            action_name = "missing_value_imputation"
+            action_desc = f"Filled {missing_before} missing values in '{col_to_fix}' using {method}"
+            metrics = {
+                "column": col_to_fix,
+                "method": method,
+                "missing_before": int(missing_before),
+                "missing_after": int(missing_after),
+                "rows_affected": int(missing_before),
+            }
+            
+            _save_changes(
+                temp_df,
+                f"Fixed missing values in {col_to_fix}",
+                action_name=action_name,
+                action_desc=action_desc,
+                metrics=metrics
+            )
             return [action_desc]
     
     return []
@@ -310,7 +358,23 @@ def _duplicates_handler(df: pd.DataFrame, original_df: pd.DataFrame):
             
             st.success(f"✅ Deduplication complete!")
             status.update(label="✅ Duplicates handled", state="complete")
-            _save_changes(temp_df, f"Removed duplicates from dataset")
+            
+            action_name = "duplicate_removal"
+            action_desc = f"Removed {rows_before - len(temp_df)} duplicate rows using '{action}'"
+            metrics = {
+                "method": action,
+                "rows_before": int(rows_before),
+                "rows_after": int(len(temp_df)),
+                "duplicates_removed": int(rows_before - len(temp_df)),
+            }
+            
+            _save_changes(
+                temp_df,
+                f"Removed duplicates from dataset",
+                action_name=action_name,
+                action_desc=action_desc,
+                metrics=metrics
+            )
             return [action_desc]
     
     return []
@@ -432,7 +496,23 @@ def _outliers_handler(df: pd.DataFrame, original_df: pd.DataFrame):
             
             st.success(f"✅ Outlier handling complete!")
             status.update(label="✅ Outliers handled", state="complete")
-            _save_changes(temp_df, f"Applied {action} to {len(outliers)} outliers")
+            
+            action_name = "outlier_handling"
+            action_desc = f"Applied '{action}' to {len(outliers)} outliers in '{target_col}'"
+            metrics = {
+                "column": target_col,
+                "method": action,
+                "outliers_found": int(len(outliers)),
+                "detection_method": method,
+            }
+            
+            _save_changes(
+                temp_df,
+                f"Applied {action} to {len(outliers)} outliers",
+                action_name=action_name,
+                action_desc=action_desc,
+                metrics=metrics
+            )
             return [action_desc]
     
     return []
@@ -440,7 +520,6 @@ def _outliers_handler(df: pd.DataFrame, original_df: pd.DataFrame):
 def main():
     config = load_config()
     inject_custom_css()
-    ai_sidebar_assistant()
     
     app_header(
         config,
@@ -501,19 +580,134 @@ def main():
         all_actions.extend(actions)
         
     with tab4:
-        st.subheader("📋 Cleaning Summary")
+        st.subheader("📋 Cleaning Summary & Report")
+        
         current_clean_df = get_clean_df(st.session_state)
         if current_clean_df is not None:
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write("**Original Dataset:**")
-                st.text(f"Rows: {len(raw_df):,}\nCols: {len(raw_df.columns)}\nSize: {raw_df.memory_usage(deep=True).sum()/1024/1024:.1f}MB")
-            with col2:
-                st.write("**Cleaned Dataset:**")
-                st.text(f"Rows: {len(current_clean_df):,}\nCols: {len(current_clean_df.columns)}\nSize: {current_clean_df.memory_usage(deep=True).sum()/1024/1024:.1f}MB")
+            # Record before/after metrics
+            if raw_df is not None:
+                set_before_metrics(st.session_state, raw_df)
+            set_after_metrics(st.session_state, current_clean_df)
             
-            st.info(f"**Changes**: {len(raw_df) - len(current_clean_df):,} rows removed | {raw_df.isnull().sum().sum() - current_clean_df.isnull().sum().sum()} missing values fixed")
+            report = get_cleaning_report(st.session_state)
+            summary = get_report_summary(st.session_state)
+            
+            # ===== KEY METRICS =====
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric(
+                    "Rows Removed",
+                    summary["rows_removed"],
+                    delta=f"{(summary['rows_removed']/summary['rows_before']*100):.1f}%" if summary['rows_before'] > 0 else "0%"
+                )
+            with col2:
+                st.metric(
+                    "Missing Values Fixed",
+                    summary["missing_fixed"],
+                    delta=f"{(summary['missing_fixed']/max(summary['missing_before'], 1)*100):.1f}%" if summary['missing_before'] > 0 else "0%"
+                )
+            with col3:
+                st.metric(
+                    "Duplicates Removed",
+                    summary["duplicates_removed"]
+                )
+            with col4:
+                st.metric(
+                    "Total Actions",
+                    summary["actions_count"]
+                )
+            
+            st.divider()
+            
+            # ===== BEFORE/AFTER COMPARISON =====
+            st.markdown("**Before & After Comparison:**")
+            comparison_df = pd.DataFrame({
+                "Metric": ["Total Rows", "Total Columns", "Missing Values", "Duplicate Rows"],
+                "Before": [
+                    summary["rows_before"],
+                    len(raw_df.columns) if raw_df is not None else 0,
+                    summary["missing_before"],
+                    summary["duplicates_before"],
+                ],
+                "After": [
+                    summary["rows_after"],
+                    len(current_clean_df.columns),
+                    summary["missing_after"],
+                    summary["duplicates_after"],
+                ],
+                "Change": [
+                    summary["rows_after"] - summary["rows_before"],
+                    0,
+                    -(summary["missing_fixed"]),
+                    -(summary["duplicates_removed"]),
+                ],
+            })
+            st.dataframe(comparison_df, width="stretch", hide_index=True)
+            
+            st.divider()
+            
+            # ===== ACTIONS TAKEN =====
+            st.markdown("**Actions Taken (in order):**")
+            if report["actions"]:
+                for i, action in enumerate(report["actions"], 1):
+                    with st.expander(f"{i}. {action['action_description']}", expanded=False):
+                        st.write(f"**Type:** `{action['action_name']}`")
+                        st.write(f"**Time:** {action['timestamp']}")
+                        st.json(action['metrics'], expanded=False)
+            else:
+                st.info("No cleaning actions recorded yet. Apply changes above to build the report.")
+            
+            st.divider()
+            
+            # ===== EXPORT OPTIONS =====
+            st.markdown("**📥 Export Report:**")
+            
+            col_json, col_csv, col_md = st.columns(3)
+            
+            with col_json:
+                report_json = export_report_json(st.session_state)
+                st.download_button(
+                    label="📄 JSON Report",
+                    data=report_json,
+                    file_name=f"cleaning_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                    mime="application/json",
+                    width="stretch",
+                )
+            
+            with col_csv:
+                actions_csv = export_report_csv(st.session_state)
+                st.download_button(
+                    label="📊 CSV Actions",
+                    data=actions_csv.to_csv(index=False),
+                    file_name=f"cleaning_actions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv",
+                    width="stretch",
+                )
+            
+            with col_md:
+                report_md = export_report_markdown(st.session_state)
+                st.download_button(
+                    label="📝 Markdown",
+                    data=report_md,
+                    file_name=f"cleaning_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                    mime="text/markdown",
+                    width="stretch",
+                )
+        else:
+            st.info("No cleaning actions yet. Start by applying changes to missing data, duplicates, or outliers above.")
         
+    st.divider()
+    
+    # ========================================================================
+    # FLOW GUIDANCE
+    # ========================================================================
+    
+    render_step_guidance(
+        current_step_id=2,
+        current_step_name="Data Cleaning",
+        current_step_description="Remove missing values, duplicates, and outliers to prepare data for modeling."
+    )
+    
     st.divider()
     
     # ========================================================================
@@ -559,6 +753,17 @@ def main():
         "Forgetting to record changes": "Keep cleaning reports for reproducibility and model auditing.",
         "Over-aggressive outlier removal": "Confirm whether extremes are valid before deletion.",
     })
+    
+    st.divider()
+    
+    # ========================================================================
+    # NEXT STEP BUTTON
+    # ========================================================================
+    
+    if clean_df is not None:
+        st.markdown("### 🎯 Ready for the Next Step?")
+        st.write("Your data is clean and ready for Feature Engineering!")
+        render_next_step_button(next_step_id=3)
     
     page_navigation("3")
 

@@ -23,7 +23,6 @@ from src.core.standardized_ui import (
 from src.core.styles import render_stat_card, inject_custom_css
 from src.core.premium_styles import inject_premium_css
 from src.core.modern_components import smart_data_preview, auto_data_profile
-from src.core.ai_helper import ai_help_button, ai_interpretation_box, ai_sidebar_assistant
 from src.data.eda import correlation_matrix, describe_numeric, detect_anomaly_zscore, summarize, value_counts
 
 
@@ -31,9 +30,6 @@ config = load_config()
 
 # Apply custom CSS
 inject_custom_css()
-
-# Add AI assistant for interpretation help
-ai_sidebar_assistant()
 
 app_header(
     config,

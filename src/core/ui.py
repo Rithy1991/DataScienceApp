@@ -69,7 +69,7 @@ def instruction_block(title: str, lines: list[str], expanded: bool = False) -> N
 
 def sidebar_dataset_status(df: Optional[pd.DataFrame], clean_df: Optional[pd.DataFrame]) -> None:
     with st.sidebar:
-        st.subheader("Session")
+        st.subheader("Session & Progress")
         if df is None:
             st.caption("Raw dataset: not loaded")
         else:
@@ -79,6 +79,14 @@ def sidebar_dataset_status(df: Optional[pd.DataFrame], clean_df: Optional[pd.Dat
             st.caption("Clean dataset: not created")
         else:
             st.caption(f"Clean dataset: {clean_df.shape[0]:,} rows × {clean_df.shape[1]:,} cols")
+
+        # Visual progress indicator
+        if df is not None and clean_df is None:
+            st.progress(0.33, text="📊 Data Loaded — Next: Clean")
+        elif df is not None and clean_df is not None:
+            st.progress(0.67, text="✅ Data Cleaned — Next: Feature Engineering")
+        else:
+            st.progress(0.0, text="🏠 Start by Loading Data")
 
         st.divider()
         # Beginner vs Advanced mode toggle (persisted in session)
@@ -91,7 +99,7 @@ def sidebar_dataset_status(df: Optional[pd.DataFrame], clean_df: Optional[pd.Dat
             key="ui_mode",
             help="Beginner mode simplifies options and adds explanations. Advanced shows full controls.",
         )
-        st.caption("Tip: Use Data Cleaning → save cleaned data to session.")
+        st.caption("💡 **Tip:** Load data → Clean → Feature Engineer → Train Model")
 
 
 def _curated_sidebar_menu() -> None:

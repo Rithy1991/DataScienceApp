@@ -19,7 +19,6 @@ from src.core.config import load_config
 from src.core.state import get_clean_df, get_df, set_clean_df
 from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_sidebar_assistant
 from src.core.platform_ui import module_section
 from src.core.standardized_ui import (
     standard_section_header,
@@ -226,7 +225,6 @@ def _feature_creation(df: pd.DataFrame):
 def main():
     config = load_config()
     inject_custom_css()
-    ai_sidebar_assistant()
     
     app_header(
         config,

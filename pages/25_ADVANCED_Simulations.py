@@ -82,7 +82,7 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
             'Column': df.columns,
             'Type': df.dtypes.astype(str)
         })
-        st.dataframe(dtype_summary, use_container_width=True, hide_index=True)
+        st.dataframe(dtype_summary, width="stretch", hide_index=True)
     
     # Missing values
     missing = df.isnull().sum()
@@ -94,13 +94,13 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
                 'Count': missing[missing > 0].values,
                 '% Missing': missing_pct[missing > 0].values
             })
-            st.dataframe(missing_df, use_container_width=True, hide_index=True)
+            st.dataframe(missing_df, width="stretch", hide_index=True)
     
     # Numeric summary
     numeric_cols = df.select_dtypes(include=[np.number]).columns
     if len(numeric_cols) > 0:
         with st.sidebar.expander("Numeric Summary", expanded=False):
-            st.dataframe(df[numeric_cols].describe().round(3), use_container_width=True)
+            st.dataframe(df[numeric_cols].describe().round(3), width="stretch")
     
     # Class distribution (for first non-numeric or last column)
     cat_cols = df.select_dtypes(include=['object']).columns
@@ -112,7 +112,7 @@ def _render_eda_preview(df: pd.DataFrame) -> None:
     elif len(numeric_cols) > 0:
         last_numeric = numeric_cols[-1]
         with st.sidebar.expander(f"Distribution: {last_numeric}", expanded=False):
-            st.histogram(df[last_numeric].dropna(), use_container_width=True)
+            st.histogram(df[last_numeric].dropna(), width="stretch")
 
 
 def _prepare_uploaded_xy(df: pd.DataFrame, problem_type: str, key_prefix: str):
@@ -282,12 +282,12 @@ def main():
                         yaxis_title=f"{dim_reducer.upper()}-2",
                         height=500
                     )
-                    st.plotly_chart(fig_2d, use_container_width=True)
+                    st.plotly_chart(fig_2d, width="stretch")
                 
                 with col2:
                     if result.original_data.shape[1] >= 3:
                         fig_3d = AdvancedVisualizer.plot_3d_clusters(result.original_data, result.labels)
-                        st.plotly_chart(fig_3d, use_container_width=True)
+                        st.plotly_chart(fig_3d, width="stretch")
                 
                 # Metrics
                 st.subheader("📊 Clustering Quality Metrics")
@@ -387,7 +387,7 @@ def main():
                     
                     # Architecture visualization
                     fig_arch = AdvancedVisualizer.plot_neural_architecture(best.architecture, best.activation)
-                    st.plotly_chart(fig_arch, use_container_width=True)
+                    st.plotly_chart(fig_arch, width="stretch")
                     
                     # Search history
                     st.subheader("📈 Architecture Search Progress")
@@ -408,7 +408,7 @@ def main():
                         title="NAS Search Progress",
                         hover_data=['Layers']
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     # Top architectures table
                     st.subheader("Top 10 Architectures")
@@ -420,7 +420,7 @@ def main():
                         'Val Score': [f"{r.final_score:.4f}" for r in results[:10]],
                         'Iterations': [r.convergence_iteration for r in results[:10]]
                     })
-                    st.dataframe(top_10, use_container_width=True, hide_index=True)
+                    st.dataframe(top_10, width="stretch", hide_index=True)
     
     with tab3:
         st.header("📊 Ensemble Methods Comparison")
@@ -482,7 +482,7 @@ def main():
                 results_df = results_df.round(4)
                 
                 st.subheader("📊 Detailed Results")
-                st.dataframe(results_df, use_container_width=True)
+                st.dataframe(results_df, width="stretch")
                 
                 # Comparison visualizations
                 col1, col2 = st.columns(2)
@@ -496,7 +496,7 @@ def main():
                         color=results_df['accuracy'],
                         color_continuous_scale='Viridis'
                     )
-                    st.plotly_chart(fig_acc, use_container_width=True)
+                    st.plotly_chart(fig_acc, width="stretch")
                 
                 with col2:
                     fig_time = px.bar(
@@ -507,7 +507,7 @@ def main():
                         color=results_df['train_time'],
                         color_continuous_scale='Reds'
                     )
-                    st.plotly_chart(fig_time, use_container_width=True)
+                    st.plotly_chart(fig_time, width="stretch")
                 
                 # Best method
                 best_idx = results_df['f1'].idxmax()
@@ -596,11 +596,11 @@ def main():
                         yaxis_title="Feature 2",
                         height=500
                     )
-                    st.plotly_chart(fig_2d, use_container_width=True)
+                    st.plotly_chart(fig_2d, width="stretch")
                 
                 # Anomaly scores
                 fig_scores = AdvancedVisualizer.plot_anomaly_scores(result.scores, result.predictions)
-                st.plotly_chart(fig_scores, use_container_width=True)
+                st.plotly_chart(fig_scores, width="stretch")
     
     with tab5:
         st.header("🔬 A/B Testing & Statistical Analysis")
@@ -775,7 +775,7 @@ def main():
                                 title="Power from uploaded data (baseline and uplift derived)",
                                 color_continuous_scale='RdYlGn'
                             )
-                            st.plotly_chart(fig, use_container_width=True)
+                            st.plotly_chart(fig, width="stretch")
             else:
                 col1, col2 = st.columns(2)
                 with col1:
@@ -804,7 +804,7 @@ def main():
                             title="Statistical Power Heatmap",
                             color_continuous_scale='RdYlGn'
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
     
     with tab6:
         st.header("🚀 Production Readiness Assessment")

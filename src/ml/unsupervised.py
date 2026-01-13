@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import warnings
 from typing import Any, Dict, List, Optional, Tuple, Union
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 import pickle
 
@@ -66,12 +66,12 @@ warnings.filterwarnings("ignore")
 
 @dataclass
 class ClusteringModel:
-    """Comprehensive clustering wrapper."""
-    
-    algorithm: str  # 'kmeans', 'dbscan', 'hierarchical', 'spectral', etc.
-    n_clusters: Optional[int] = 3
+    """A standardized wrapper for common clustering algorithms."""
+
+    algorithm: str
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
     random_state: int = 42
-    
+
     def __post_init__(self):
         self.model = None
         self.labels_ = None
@@ -82,89 +82,150 @@ class ClusteringModel:
         self.calinski_harabasz_score_ = None
         self.n_clusters_ = None
         self.X_scaled_ = None
-    
+        self.scaler_ = None  # To store the fitted scaler
+
     def _get_model(self):
-        """Get clustering model instance."""
+        """Get clustering model instance with standardized hyperparameters."""
         algo = self.algorithm.lower()
-        
+        params = self.hyperparameters.copy()
+
+        # Standardize random_state for algorithms that support it
+        if algo in ["kmeans", "spectral", "gmm"]:
+            params["random_state"] = self.random_state
+
         if algo == "kmeans":
-            return KMeans(n_clusters=self.n_clusters or 3, random_state=self.random_state, n_init=10)
+            # Use k-means++ for better initialization and set n_init
+            params.setdefault("init", "k-means++")
+            params.setdefault("n_init", 10)
+            return KMeans(**params)
+
         elif algo == "dbscan":
-            eps = self.n_clusters if isinstance(self.n_clusters, float) else 0.5
-            return DBSCAN(eps=eps, min_samples=5)
+            # min_samples is a critical parameter, provide a default
+            params.setdefault("min_samples", 5)
+            return DBSCAN(**params)
+
         elif algo == "hierarchical":
-            return AgglomerativeClustering(n_clusters=self.n_clusters or 3)
+            return AgglomerativeClustering(**params)
+
         elif algo == "spectral":
-            return SpectralClustering(n_clusters=self.n_clusters or 3, random_state=self.random_state)
+            return SpectralClustering(**params)
+
         elif algo == "birch":
-            return Birch(n_clusters=self.n_clusters or 3)
+            return Birch(**params)
+
         elif algo == "meanshift":
-            return MeanShift()
-        else:
-            return KMeans(n_clusters=self.n_clusters or 3, random_state=self.random_state, n_init=10)
-    
-    def fit(self, X: pd.DataFrame) -> ClusteringModel:
-        """Fit clustering model."""
-        # Scale features
-        scaler = StandardScaler()
-        self.X_scaled_ = scaler.fit_transform(X)
+            # Automatically estimate bandwidth if not provided
+            if "bandwidth" not in params:
+                try:
+                    # Use a sample to speed up bandwidth estimation
+                    sample_size = min(len(self.X_scaled_), 1000)
+                    sample = self.X_scaled_[
+                        np.random.choice(self.X_scaled_.shape[0], sample_size, replace=False)
+                    ]
+                    params["bandwidth"] = estimate_bandwidth(
+                        sample, quantile=0.2, n_samples=500
+                    )
+                except Exception:
+                    # Fallback if estimation fails
+                    params["bandwidth"] = None
+            return MeanShift(**params)
         
+        elif algo == "gmm":
+            from sklearn.mixture import GaussianMixture
+            params.setdefault("n_init", 10)
+            return GaussianMixture(**params)
+
+        else:
+            raise ValueError(f"Unsupported clustering algorithm: {self.algorithm}")
+
+    def fit(self, X: pd.DataFrame) -> "ClusteringModel":
+        """Fit clustering model to the data.
+
+        Args:
+            X: Input DataFrame with features.
+
+        Returns:
+            The fitted ClusteringModel instance.
+        """
+        if X.empty:
+            raise ValueError("Input data cannot be empty.")
+
+        # Scale features and store the scaler
+        self.scaler_ = StandardScaler()
+        self.X_scaled_ = self.scaler_.fit_transform(X)
+
         # Create and fit model
         self.model = self._get_model()
-        self.model.fit(self.X_scaled_)
-        
-        # Get labels
-        self.labels_ = self.model.labels_
-        self.n_clusters_ = len(np.unique(self.labels_[self.labels_ >= 0]))
-        
-        # Get cluster centers if available
-        if hasattr(self.model, 'cluster_centers_'):
-            self.cluster_centers_ = self.model.cluster_centers_
-        
-        # Get inertia if available
-        if hasattr(self.model, 'inertia_'):
-            self.inertia_ = self.model.inertia_
-        
-        return self
-    
-    def predict(self, X: pd.DataFrame) -> np.ndarray:
-        """Predict clusters for new data."""
-        if self.model is None:
-            raise ValueError("Model not fitted yet.")
-        
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        
-        if hasattr(self.model, 'predict'):
-            return self.model.predict(X_scaled)
+
+        # Handle algorithms that don't support fit_predict
+        if hasattr(self.model, "fit_predict"):
+            self.labels_ = self.model.fit_predict(self.X_scaled_)
         else:
-            raise ValueError(f"Algorithm {self.algorithm} doesn't support prediction.")
-    
-    def evaluate(self, X: pd.DataFrame) -> Dict[str, float]:
-        """Evaluate clustering quality."""
-        if self.labels_ is None:
-            raise ValueError("Model not fitted yet.")
-        
-        results = {}
-        
-        # Silhouette score (higher is better, range [-1, 1])
-        if len(np.unique(self.labels_)) > 1:
-            results['silhouette_score'] = silhouette_score(self.X_scaled_, self.labels_)
-        
-        # Davies-Bouldin score (lower is better)
-        if len(np.unique(self.labels_)) > 1:
-            results['davies_bouldin_score'] = davies_bouldin_score(self.X_scaled_, self.labels_)
-        
-        # Calinski-Harabasz score (higher is better)
-        if len(np.unique(self.labels_)) > 1:
-            results['calinski_harabasz_score'] = calinski_harabasz_score(self.X_scaled_, self.labels_)
-        
-        results['n_clusters'] = self.n_clusters_
-        results['inertia'] = self.inertia_
-        
-        self.silhouette_score_ = results.get('silhouette_score')
-        self.davies_bouldin_score_ = results.get('davies_bouldin_score')
-        self.calinski_harabasz_score_ = results.get('calinski_harabasz_score')
+            self.model.fit(self.X_scaled_)
+            self.labels_ = self.model.labels_
+
+        # Post-fit analysis
+        self.n_clusters_ = len(np.unique(self.labels_[self.labels_ != -1]))  # Exclude noise points
+
+        if hasattr(self.model, "cluster_centers_"):
+            self.cluster_centers_ = self.model.cluster_centers_
+
+        if hasattr(self.model, "inertia_"):
+            self.inertia_ = self.model.inertia_
+
+        # Auto-evaluate after fitting
+        self.evaluate()
+
+        return self
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+        """Predict clusters for new data if the algorithm supports it."""
+        if self.model is None or self.scaler_ is None:
+            raise RuntimeError("Model is not fitted yet. Call .fit() first.")
+
+        if not hasattr(self.model, "predict"):
+            raise NotImplementedError(
+                f"The '{self.algorithm}' algorithm does not support predicting on new data."
+            )
+
+        # Use the stored scaler to transform new data
+        X_scaled = self.scaler_.transform(X)
+        return self.model.predict(X_scaled)
+
+    def evaluate(self) -> Dict[str, float]:
+        """Evaluate clustering quality and store scores in the instance.
+
+        Returns:
+            A dictionary containing the evaluation metrics.
+        """
+        if self.labels_ is None or self.X_scaled_ is None:
+            raise RuntimeError("Model is not fitted yet. Call .fit() first.")
+
+        results = {"n_clusters": self.n_clusters_, "inertia": self.inertia_}
+
+        # Metrics require at least 2 clusters and no more than n_samples-1
+        if 1 < self.n_clusters_ < self.X_scaled_.shape[0]:
+            try:
+                self.silhouette_score_ = silhouette_score(self.X_scaled_, self.labels_)
+                results["silhouette_score"] = self.silhouette_score_
+            except ValueError:
+                self.silhouette_score_ = None
+
+            try:
+                self.davies_bouldin_score_ = davies_bouldin_score(
+                    self.X_scaled_, self.labels_
+                )
+                results["davies_bouldin_score"] = self.davies_bouldin_score_
+            except ValueError:
+                self.davies_bouldin_score_ = None
+
+            try:
+                self.calinski_harabasz_score_ = calinski_harabasz_score(
+                    self.X_scaled_, self.labels_
+                )
+                results["calinski_harabasz_score"] = self.calinski_harabasz_score_
+            except ValueError:
+                self.calinski_harabasz_score_ = None
         
         return results
     
@@ -186,80 +247,102 @@ class ClusteringModel:
 
 @dataclass
 class DimensionalityReducer:
-    """Dimensionality reduction wrapper."""
-    
-    algorithm: str  # 'pca', 'tsne', 'umap', 'mds', 'lle', 'nmf'
-    n_components: int = 2
+    """A standardized wrapper for common dimensionality reduction techniques."""
+    algorithm: str
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
     random_state: int = 42
-    
+
     def __post_init__(self):
         self.model = None
         self.components_ = None
         self.explained_variance_ratio_ = None
         self.X_transformed_ = None
-    
+        self.scaler_ = None  # To store the fitted scaler
+        self.model_ = None # Renamed to avoid conflict
+
     def _get_model(self):
-        """Get dimensionality reduction model."""
+        """Get dimensionality reduction model instance with standardized hyperparameters."""
         algo = self.algorithm.lower()
-        
+        params = self.hyperparameters.copy()
+
+        # Standardize random_state for algorithms that support it
+        if algo in ["pca", "tsne", "umap", "mds", "lle", "nmf", "fa", "svd"]:
+            params["random_state"] = self.random_state
+
         if algo == "pca":
-            return PCA(n_components=self.n_components, random_state=self.random_state)
+            return PCA(**params)
         elif algo == "tsne":
-            return TSNE(n_components=self.n_components, random_state=self.random_state, perplexity=30)
-        elif algo == "umap" and HAS_UMAP:
-            return umap.UMAP(n_components=self.n_components, random_state=self.random_state)
+            # Default perplexity is often a good starting point
+            params.setdefault("perplexity", 30)
+            return TSNE(**params)
+        elif algo == "umap":
+            if not HAS_UMAP:
+                raise ImportError(
+                    "UMAP is not installed. Please install it with: pip install umap-learn"
+                )
+            return umap.UMAP(**params)
         elif algo == "mds":
-            return MDS(n_components=self.n_components, random_state=self.random_state)
+            params.setdefault("n_init", 4) # Recommended default
+            return MDS(**params)
         elif algo == "lle":
-            return LocallyLinearEmbedding(n_components=self.n_components, random_state=self.random_state)
+            params.setdefault("n_neighbors", 5) # Required parameter
+            return LocallyLinearEmbedding(**params)
         elif algo == "nmf":
-            return NMF(n_components=self.n_components, random_state=self.random_state)
+            params.setdefault("init", "nndsvda") # A robust default
+            return NMF(**params)
+        elif algo == "fa":
+            return FactorAnalysis(**params)
+        elif algo == "svd":
+            return TruncatedSVD(**params)
         else:
-            return PCA(n_components=self.n_components, random_state=self.random_state)
-    
-    def fit(self, X: pd.DataFrame) -> DimensionalityReducer:
-        """Fit dimensionality reducer."""
-        # Scale features
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        
-        # Create and fit model
-        self.model = self._get_model()
-        self.X_transformed_ = self.model.fit_transform(X_scaled)
-        
-        # Store explained variance if available
-        if hasattr(self.model, 'explained_variance_ratio_'):
-            self.explained_variance_ratio_ = self.model.explained_variance_ratio_
-        
-        if hasattr(self.model, 'components_'):
-            self.components_ = self.model.components_
-        
+            raise ValueError(f"Unsupported dimensionality reduction algorithm: {self.algorithm}")
+
+    def fit(self, X: pd.DataFrame) -> "DimensionalityReducer":
+        """Fit the dimensionality reducer to the data.
+
+        Args:
+            X: Input DataFrame with features.
+
+        Returns:
+            The fitted DimensionalityReducer instance.
+        """
+        if X.empty:
+            raise ValueError("Input data cannot be empty.")
+
+        self.scaler_ = StandardScaler()
+        X_scaled = self.scaler_.fit_transform(X)
+
+        self.model_ = self._get_model()
+        self.X_transformed_ = self.model_.fit_transform(X_scaled)
+
+        if hasattr(self.model_, "explained_variance_ratio_"):
+            self.explained_variance_ratio_ = self.model_.explained_variance_ratio_
+
+        if hasattr(self.model_, "components_"):
+            self.components_ = self.model_.components_
+
         return self
-    
+
     def transform(self, X: pd.DataFrame) -> np.ndarray:
-        """Transform new data."""
-        if self.model is None:
-            raise ValueError("Model not fitted yet.")
-        
-        scaler = StandardScaler()
-        X_scaled = scaler.fit_transform(X)
-        
-        return self.model.transform(X_scaled)
-    
-    def get_variance_explained(self) -> Dict[str, Any]:
-        """Get variance explanation (PCA only)."""
-        if not hasattr(self.model, 'explained_variance_ratio_'):
-            return {}
-        
+        """Transform new data using the fitted model."""
+        if self.model_ is None or self.scaler_ is None:
+            raise RuntimeError("Model is not fitted yet. Call .fit() first.")
+
+        X_scaled = self.scaler_.transform(X)
+        return self.model_.transform(X_scaled)
+
+    def get_variance_explained(self) -> Optional[Dict[str, Any]]:
+        """Get variance explanation details, if applicable (e.g., for PCA)."""
+        if self.explained_variance_ratio_ is None:
+            return None
+
+        cumulative_variance = np.cumsum(self.explained_variance_ratio_)
         return {
-            'explained_variance_ratio': self.explained_variance_ratio_,
-            'cumulative_variance_ratio': np.cumsum(self.explained_variance_ratio_),
-            'total_variance_explained': np.sum(self.explained_variance_ratio_)
+            "explained_variance_ratio": self.explained_variance_ratio_.tolist(),
+            "cumulative_variance_ratio": cumulative_variance.tolist(),
+            "total_variance_explained": float(np.sum(self.explained_variance_ratio_)),
         }
     
-    def fit_transform(self, X: pd.DataFrame) -> np.ndarray:
-        """Fit and transform in one step."""
-        return self.fit(X).X_transformed_
 
 
 class AnomalyDetector:

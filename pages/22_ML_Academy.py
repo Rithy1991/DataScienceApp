@@ -11,14 +11,12 @@ from src.core.config import load_config
 from src.core.ui import app_header, instruction_block, sidebar_dataset_status, page_navigation
 from src.core.standardized_ui import standard_section_header, beginner_tip, concept_explainer
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_sidebar_assistant
 from src.academy.ml_curriculum import get_curriculum, format_module
 
 st.set_page_config(page_title="DataScope Pro - ML Academy", layout="wide", initial_sidebar_state="expanded")
 
 config = load_config()
 inject_custom_css()
-ai_sidebar_assistant()
 
 # ==================== Header ====================
 app_header(

@@ -22,6 +22,9 @@ from scipy.stats import randint, uniform
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Suppress scikit-learn warnings for educational context (imbalanced data)
+warnings.filterwarnings('ignore', category=UserWarning, module='sklearn.metrics._ranking')
+
 # Scikit-learn imports
 from sklearn.model_selection import (
     train_test_split,
@@ -122,13 +125,14 @@ warnings.filterwarnings("ignore")
 class DataPreprocessor:
     """Handle data preprocessing, feature scaling, and encoding."""
     
-    scaler_type: str = "standard"  # standard, minmax, robust
-    handle_missing: str = "mean"  # mean, median, drop
-    encode_type: str = "onehot"  # onehot, label
-    outlier_method: str = "iqr"  # iqr, zscore, none
-    outlier_threshold: float = 3.0
-    
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
+
     def __post_init__(self):
+        self.scaler_type = self.hyperparameters.get("scaler_type", "standard")
+        self.handle_missing = self.hyperparameters.get("handle_missing", "mean")
+        self.outlier_method = self.hyperparameters.get("outlier_method", "iqr")
+        self.outlier_threshold = self.hyperparameters.get("outlier_threshold", 3.0)
+        
         self.scaler = self._get_scaler()
         self.label_encoders: Dict[str, LabelEncoder] = {}
         self.feature_names_: Optional[List[str]] = None
@@ -208,15 +212,16 @@ class DataPreprocessor:
 
 @dataclass
 class SupervisedLearningModel:
-    """Comprehensive supervised learning model wrapper."""
-    
+    """A standardized wrapper for common supervised learning algorithms."""
+
     task_type: str  # 'classification' or 'regression'
-    model_type: str  # 'logistic', 'random_forest', 'xgboost', etc.
+    model_type: str
+    hyperparameters: Dict[str, Any] = field(default_factory=dict)
     test_size: float = 0.2
     random_state: int = 42
     stratify: bool = True
     preprocessor: Optional[DataPreprocessor] = None
-    
+
     def __post_init__(self):
         self.model = None
         self.preprocessor = self.preprocessor or DataPreprocessor()
@@ -229,78 +234,111 @@ class SupervisedLearningModel:
         self.feature_importance_: Optional[pd.DataFrame] = None
         self.predictions_ = None
         self.feature_engineering_: Dict[str, Any] = {}
-    
+        self.calibrated_model_ = None
+
     def _get_model(self):
-        """Get model instance based on type."""
+        """Get model instance with standardized hyperparameters."""
         task = self.task_type.lower()
         mtype = self.model_type.lower()
-        
+        params = self.hyperparameters.copy()
+
+        # Standardize random_state for algorithms that support it
+        if mtype in [
+            "logistic", "random_forest", "gradient_boosting", "svm", 
+            "decision_tree", "mlp", "adaboost", "xgboost", "lightgbm",
+            "extra_trees", "bagging", "stacking"
+        ]:
+            if "random_state" not in params:
+                params["random_state"] = self.random_state
+
+        # Define model factories
+        CLASSIFICATION_MODELS = {
+            "logistic": LogisticRegression,
+            "random_forest": RandomForestClassifier,
+            "gradient_boosting": GradientBoostingClassifier,
+            "svm": SVC,
+            "knn": KNeighborsClassifier,
+            "decision_tree": DecisionTreeClassifier,
+            "naive_bayes": GaussianNB,
+            "mlp": MLPClassifier,
+            "adaboost": AdaBoostClassifier,
+            "extra_trees": ExtraTreesClassifier,
+            "bagging": BaggingClassifier,
+            "stacking": StackingClassifier,
+        }
+        REGRESSION_MODELS = {
+            "linear": LinearRegression,
+            "ridge": Ridge,
+            "lasso": Lasso,
+            "elasticnet": ElasticNet,
+            "random_forest": RandomForestRegressor,
+            "gradient_boosting": GradientBoostingRegressor,
+            "svm": SVR,
+            "knn": KNeighborsRegressor,
+            "decision_tree": DecisionTreeRegressor,
+            "mlp": MLPRegressor,
+            "adaboost": AdaBoostRegressor,
+            "extra_trees": ExtraTreesRegressor,
+            "bagging": BaggingRegressor,
+            "stacking": StackingRegressor,
+        }
+
+        # Add optional models
+        if HAS_XGBOOST:
+            CLASSIFICATION_MODELS["xgboost"] = xgb.XGBClassifier
+            REGRESSION_MODELS["xgboost"] = xgb.XGBRegressor
+            if mtype == "xgboost":
+                params.setdefault("use_label_encoder", False)
+                params.setdefault("eval_metric", "logloss" if task == "classification" else "rmse")
+
+        if HAS_LIGHTGBM:
+            CLASSIFICATION_MODELS["lightgbm"] = lgb.LGBMClassifier
+            REGRESSION_MODELS["lightgbm"] = lgb.LGBMRegressor
+            if mtype == "lightgbm":
+                params.setdefault("verbose", -1)
+
+        # Get the correct model factory
         if task == "classification":
-            if mtype == "logistic":
-                return LogisticRegression(max_iter=1000, random_state=self.random_state)
-            elif mtype == "random_forest":
-                return RandomForestClassifier(n_estimators=100, random_state=self.random_state, n_jobs=-1)
-            elif mtype == "gradient_boosting":
-                return GradientBoostingClassifier(random_state=self.random_state)
-            elif mtype == "svm":
-                return SVC(probability=True, random_state=self.random_state)
-            elif mtype == "knn":
-                return KNeighborsClassifier(n_neighbors=5)
-            elif mtype == "decision_tree":
-                return DecisionTreeClassifier(random_state=self.random_state)
-            elif mtype == "naive_bayes":
-                return GaussianNB()
-            elif mtype == "mlp":
-                return MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=1000, random_state=self.random_state)
-            elif mtype == "adaboost":
-                return AdaBoostClassifier(random_state=self.random_state)
-            elif mtype == "xgboost" and HAS_XGBOOST:
-                return xgb.XGBClassifier(random_state=self.random_state, use_label_encoder=False, eval_metric='logloss')
-            elif mtype == "lightgbm" and HAS_LIGHTGBM:
-                return lgb.LGBMClassifier(random_state=self.random_state, verbose=-1)
+            model_factory = CLASSIFICATION_MODELS.get(mtype)
+        else:
+            model_factory = REGRESSION_MODELS.get(mtype)
+
+        if model_factory:
+            # Filter params to only those accepted by the model
+            import inspect
+            sig = inspect.signature(model_factory)
+            valid_params = {k: v for k, v in params.items() if k in sig.parameters}
+            return model_factory(**valid_params)
+        else:
+            # Fallback to a robust default if type is unknown
+            if task == "classification":
+                return RandomForestClassifier(random_state=self.random_state)
             else:
-                return RandomForestClassifier(n_estimators=100, random_state=self.random_state, n_jobs=-1)
-        
-        else:  # regression
-            if mtype == "linear":
-                return LinearRegression()
-            elif mtype == "ridge":
-                return Ridge(alpha=1.0)
-            elif mtype == "lasso":
-                return Lasso(alpha=0.1)
-            elif mtype == "elasticnet":
-                return ElasticNet(alpha=0.1)
-            elif mtype == "random_forest":
-                return RandomForestRegressor(n_estimators=100, random_state=self.random_state, n_jobs=-1)
-            elif mtype == "gradient_boosting":
-                return GradientBoostingRegressor(random_state=self.random_state)
-            elif mtype == "svm":
-                return SVR(kernel='rbf')
-            elif mtype == "knn":
-                return KNeighborsRegressor(n_neighbors=5)
-            elif mtype == "mlp":
-                return MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=1000, random_state=self.random_state)
-            elif mtype == "xgboost" and HAS_XGBOOST:
-                return xgb.XGBRegressor(random_state=self.random_state)
-            elif mtype == "lightgbm" and HAS_LIGHTGBM:
-                return lgb.LGBMRegressor(random_state=self.random_state, verbose=-1)
-            else:
-                return RandomForestRegressor(n_estimators=100, random_state=self.random_state, n_jobs=-1)
-    
-    def prepare_data(self, X: pd.DataFrame, y: pd.Series) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+                return RandomForestRegressor(random_state=self.random_state)
+
+    def prepare_data(self, X: pd.DataFrame, y: pd.Series) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """Prepare and split data."""
         # Preprocess features
         X_processed = self.preprocessor.fit_transform(X)
         
         # Split data
-        stratify = y if self.stratify and self.task_type == "classification" else None
-        self.X_train_, self.X_test_, self.y_train_, self.y_test_ = train_test_split(
-            X_processed,
-            y,
-            test_size=self.test_size,
-            random_state=self.random_state,
-            stratify=stratify
-        )
+        stratify_data = y if self.stratify and self.task_type == "classification" and len(np.unique(y)) > 1 else None
+        try:
+            self.X_train_, self.X_test_, self.y_train_, self.y_test_ = train_test_split(
+                X_processed,
+                y,
+                test_size=self.test_size,
+                random_state=self.random_state,
+                stratify=stratify_data
+            )
+        except ValueError: # Fallback if stratification fails
+            self.X_train_, self.X_test_, self.y_train_, self.y_test_ = train_test_split(
+                X_processed,
+                y,
+                test_size=self.test_size,
+                random_state=self.random_state,
+                stratify=None
+            )
         
         return self.X_train_, self.X_test_, self.y_train_, self.y_test_
     
@@ -319,8 +357,12 @@ class SupervisedLearningModel:
         self.train_history_["training_samples"] = len(self.y_train_)
         self.train_history_["test_samples"] = len(self.y_test_)
         
+        # Post-training steps
+        self.get_feature_importance()
+        self.evaluate()
+        
         return self
-    
+
     def evaluate(self, threshold: float = 0.5) -> Dict[str, Any]:
         """Evaluate model on test set."""
         if self.model is None:
@@ -329,40 +371,49 @@ class SupervisedLearningModel:
         self.evaluation_results_ = {}
         
         # Get predictions
-        self.predictions_ = self.model.predict(self.X_test_)
+        y_pred = self.model.predict(self.X_test_)
         
         if self.task_type == "classification":
+            # Use the optimized threshold for binary classification
+            if len(np.unique(self.y_test_)) == 2:
+                y_pred_proba = self.model.predict_proba(self.X_test_)[:, 1]
+                y_pred = (y_pred_proba >= threshold).astype(int)
+            else:
+                y_pred_proba = self.model.predict_proba(self.X_test_)
+
+            self.predictions_ = y_pred
+            
             # Classification metrics
-            self.evaluation_results_["accuracy"] = accuracy_score(self.y_test_, self.predictions_)
+            self.evaluation_results_["accuracy"] = accuracy_score(self.y_test_, y_pred)
             
             # Handle binary vs multi-class
-            if len(np.unique(self.y_test_)) == 2:
-                self.evaluation_results_["precision"] = precision_score(self.y_test_, self.predictions_, zero_division=0)
-                self.evaluation_results_["recall"] = recall_score(self.y_test_, self.predictions_, zero_division=0)
-                self.evaluation_results_["f1"] = f1_score(self.y_test_, self.predictions_, zero_division=0)
-                
-                # ROC-AUC
-                try:
-                    y_pred_proba = self.model.predict_proba(self.X_test_)[:, 1]
-                    self.evaluation_results_["roc_auc"] = roc_auc_score(self.y_test_, y_pred_proba)
-                except:
-                    pass
-            else:
-                self.evaluation_results_["precision"] = precision_score(self.y_test_, self.predictions_, average='weighted', zero_division=0)
-                self.evaluation_results_["recall"] = recall_score(self.y_test_, self.predictions_, average='weighted', zero_division=0)
-                self.evaluation_results_["f1"] = f1_score(self.y_test_, self.predictions_, average='weighted', zero_division=0)
+            avg_method = "binary" if len(np.unique(self.y_test_)) == 2 else "weighted"
+            self.evaluation_results_["precision"] = precision_score(self.y_test_, y_pred, average=avg_method, zero_division=0)
+            self.evaluation_results_["recall"] = recall_score(self.y_test_, y_pred, average=avg_method, zero_division=0)
+            self.evaluation_results_["f1"] = f1_score(self.y_test_, y_pred, average=avg_method, zero_division=0)
             
-            self.evaluation_results_["confusion_matrix"] = confusion_matrix(self.y_test_, self.predictions_)
-            self.evaluation_results_["classification_report"] = classification_report(self.y_test_, self.predictions_, output_dict=True)
+            # ROC-AUC
+            if len(np.unique(self.y_test_)) > 1:
+                try:
+                    if avg_method == "binary":
+                        self.evaluation_results_["roc_auc"] = roc_auc_score(self.y_test_, y_pred_proba)
+                    else: # multi-class
+                        self.evaluation_results_["roc_auc"] = roc_auc_score(self.y_test_, y_pred_proba, multi_class='ovr', average='weighted')
+                except ValueError:
+                    self.evaluation_results_["roc_auc"] = None # Not defined for single class
+            
+            self.evaluation_results_["confusion_matrix"] = confusion_matrix(self.y_test_, y_pred).tolist()
+            self.evaluation_results_["classification_report"] = classification_report(self.y_test_, y_pred, output_dict=True, zero_division=0)
         
         else:  # regression
-            self.evaluation_results_["mse"] = mean_squared_error(self.y_test_, self.predictions_)
+            self.predictions_ = y_pred
+            self.evaluation_results_["mse"] = mean_squared_error(self.y_test_, y_pred)
             self.evaluation_results_["rmse"] = np.sqrt(self.evaluation_results_["mse"])
-            self.evaluation_results_["mae"] = mean_absolute_error(self.y_test_, self.predictions_)
-            self.evaluation_results_["r2"] = r2_score(self.y_test_, self.predictions_)
+            self.evaluation_results_["mae"] = mean_absolute_error(self.y_test_, y_pred)
+            self.evaluation_results_["r2"] = r2_score(self.y_test_, y_pred)
             
             try:
-                self.evaluation_results_["mape"] = mean_absolute_percentage_error(self.y_test_, self.predictions_)
+                self.evaluation_results_["mape"] = mean_absolute_percentage_error(self.y_test_, y_pred)
             except:
                 pass
         
@@ -374,69 +425,69 @@ class SupervisedLearningModel:
         
         if self.task_type == "classification":
             cv_splitter = StratifiedKFold(n_splits=cv, shuffle=True, random_state=self.random_state)
-            scoring = ['accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted']
+            scoring = ['accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted', 'roc_auc_ovr_weighted']
         else:
             cv_splitter = KFold(n_splits=cv, shuffle=True, random_state=self.random_state)
             scoring = ['r2', 'neg_mean_squared_error', 'neg_mean_absolute_error']
         
         model = self._get_model()
-        results = cross_validate(model, X_processed, y, cv=cv_splitter, scoring=scoring, return_train_score=True)
+        results = cross_validate(model, X_processed, y, cv=cv_splitter, scoring=scoring, return_train_score=True, error_score='raise')
         
-        return results
-    
-    def get_feature_importance(self, X: pd.DataFrame) -> Optional[pd.DataFrame]:
-        """Get feature importance scores."""
+        # Clean up results dictionary
+        return {key: val.tolist() for key, val in results.items()}
+
+    def get_feature_importance(self) -> Optional[pd.DataFrame]:
+        """Get feature importance scores from the trained model."""
         if self.model is None:
             return None
         
-        try:
-            # For tree-based models
-            if hasattr(self.model, 'feature_importances_'):
-                importances = self.model.feature_importances_
-                feature_names = self.preprocessor.feature_names_ or [f"Feature_{i}" for i in range(len(importances))]
-                
-                self.feature_importance_ = pd.DataFrame({
-                    'feature': feature_names,
-                    'importance': importances
-                }).sort_values('importance', ascending=False)
-                
-                return self.feature_importance_
+        importances = None
+        # Standard attribute for tree-based models
+        if hasattr(self.model, 'feature_importances_'):
+            importances = self.model.feature_importances_
+        # For linear models
+        elif hasattr(self.model, 'coef_'):
+            # For multi-class logistic regression, coef_ has shape (n_classes, n_features)
+            if self.model.coef_.ndim > 1:
+                importances = np.mean(np.abs(self.model.coef_), axis=0)
+            else:
+                importances = np.abs(self.model.coef_)
+        
+        if importances is not None:
+            feature_names = self.preprocessor.feature_names_ or [f"Feature_{i}" for i in range(len(importances))]
             
-            # For linear models
-            elif hasattr(self.model, 'coef_'):
-                coef = np.abs(self.model.coef_.flatten())
-                feature_names = self.preprocessor.feature_names_ or [f"Feature_{i}" for i in range(len(coef))]
-                
-                self.feature_importance_ = pd.DataFrame({
-                    'feature': feature_names,
-                    'importance': coef
-                }).sort_values('importance', ascending=False)
-                
-                return self.feature_importance_
-        except Exception as e:
-            print(f"Could not compute feature importance: {e}")
+            self.feature_importance_ = pd.DataFrame({
+                'feature': feature_names,
+                'importance': importances
+            }).sort_values('importance', ascending=False).reset_index(drop=True)
+            
+            return self.feature_importance_
         
         return None
-    
+
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """Make predictions on new data."""
         if self.model is None:
-            raise ValueError("Model not trained yet.")
+            raise RuntimeError("Model not trained yet.")
         
         X_processed = self.preprocessor.transform(X)
-        return self.model.predict(X_processed)
-    
+        
+        # Use calibrated model for probabilities if available
+        model_to_use = self.calibrated_model_ or self.model
+        return model_to_use.predict(X_processed)
+
     def predict_proba(self, X: pd.DataFrame) -> Optional[np.ndarray]:
         """Get prediction probabilities (classification only)."""
         if self.model is None or self.task_type != "classification":
             return None
         
-        if not hasattr(self.model, 'predict_proba'):
+        model_to_use = self.calibrated_model_ or self.model
+        if not hasattr(model_to_use, 'predict_proba'):
             return None
         
         X_processed = self.preprocessor.transform(X)
-        return self.model.predict_proba(X_processed)
-    
+        return model_to_use.predict_proba(X_processed)
+
     def save(self, filepath: Union[str, Path]) -> None:
         """Save model to disk."""
         filepath = Path(filepath)
@@ -447,8 +498,10 @@ class SupervisedLearningModel:
             'preprocessor': self.preprocessor,
             'task_type': self.task_type,
             'model_type': self.model_type,
+            'hyperparameters': self.hyperparameters,
             'evaluation_results': self.evaluation_results_,
             'feature_importance': self.feature_importance_,
+            'calibrated_model': self.calibrated_model_,
         }
         
         with open(filepath, 'wb') as f:
@@ -461,13 +514,15 @@ class SupervisedLearningModel:
             data = pickle.load(f)
         
         instance = SupervisedLearningModel(
-            task_type=data['task_type'],
-            model_type=data['model_type'],
-            preprocessor=data['preprocessor']
+            task_type=data.get('task_type', 'classification'),
+            model_type=data.get('model_type', 'random_forest'),
+            hyperparameters=data.get('hyperparameters', {}),
+            preprocessor=data.get('preprocessor')
         )
-        instance.model = data['model']
-        instance.evaluation_results_ = data['evaluation_results']
-        instance.feature_importance_ = data['feature_importance']
+        instance.model = data.get('model')
+        instance.evaluation_results_ = data.get('evaluation_results', {})
+        instance.feature_importance_ = data.get('feature_importance')
+        instance.calibrated_model_ = data.get('calibrated_model')
         
         return instance
 
@@ -476,35 +531,45 @@ class SupervisedLearningModel:
 class HyperparameterOptimizer:
     """Grid and Random search for hyperparameter optimization."""
     
-    model: SupervisedLearningModel
-    search_type: str = "grid"  # 'grid', 'random', 'bayesian'
-    cv: int = 5
-    n_iter: int = 20
+    model_wrapper: SupervisedLearningModel
+    search_type: str = "grid"  # 'grid', 'random'
+    cv: int = 3 # Default to 3 for faster execution
+    n_iter: int = 15
     n_jobs: int = -1
     
     def optimize(self, X: pd.DataFrame, y: pd.Series, param_grid: Dict[str, Any]) -> Dict[str, Any]:
-        """Run hyperparameter search."""
-        X_processed = model.preprocessor.fit_transform(X)
+        """Run hyperparameter search and update the model wrapper."""
+        X_processed = self.model_wrapper.preprocessor.fit_transform(X)
         
+        # Get a fresh model instance for the search
+        base_model = self.model_wrapper._get_model()
+
         if self.search_type == "grid":
             searcher = GridSearchCV(
-                model.model,
+                base_model,
                 param_grid,
                 cv=self.cv,
-                scoring='accuracy' if model.task_type == 'classification' else 'r2',
-                n_jobs=self.n_jobs
+                scoring='f1_weighted' if self.model_wrapper.task_type == 'classification' else 'r2',
+                n_jobs=self.n_jobs,
+                error_score='raise'
             )
         else:  # random
             searcher = RandomizedSearchCV(
-                model.model,
+                base_model,
                 param_grid,
                 n_iter=self.n_iter,
                 cv=self.cv,
-                random_state=model.random_state,
-                n_jobs=self.n_jobs
+                random_state=self.model_wrapper.random_state,
+                scoring='f1_weighted' if self.model_wrapper.task_type == 'classification' else 'r2',
+                n_jobs=self.n_jobs,
+                error_score='raise'
             )
         
         searcher.fit(X_processed, y)
+        
+        # Update the main model with the best estimator found
+        self.model_wrapper.model = searcher.best_estimator_
+        self.model_wrapper.hyperparameters = searcher.best_params_
         
         return {
             'best_params': searcher.best_params_,

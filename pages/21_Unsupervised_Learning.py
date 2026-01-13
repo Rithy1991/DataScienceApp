@@ -27,7 +27,6 @@ from src.core.standardized_ui import (
     concept_explainer,
 )
 from src.core.styles import inject_custom_css
-from src.core.ai_helper import ai_sidebar_assistant
 from src.ml.unsupervised import (
     ClusteringModel,
     DimensionalityReducer,
@@ -39,7 +38,6 @@ from sklearn.preprocessing import StandardScaler
 
 config = load_config()
 inject_custom_css()
-ai_sidebar_assistant()
 
 warnings.filterwarnings("ignore")
 

@@ -16,7 +16,6 @@ from src.core.ui import app_header, sidebar_dataset_status, instruction_block, p
 from src.core.styles import render_stat_card, inject_custom_css
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import enhanced_chart
-from src.core.ai_helper import ai_sidebar_assistant, ai_interpretation_box
 from src.core.platform_ui import module_section
 from src.core.standardized_ui import (
     standard_section_header,
@@ -30,9 +29,6 @@ config = load_config()
 
 # Apply custom CSS
 inject_custom_css()
-
-# Add AI assistant
-ai_sidebar_assistant()
 
 app_header(
     config,
