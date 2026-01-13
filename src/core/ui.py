@@ -41,20 +41,20 @@ def app_header(config: AppConfig, page_title: str, subtitle: str = None, icon: s
     if subtitle is None:
         subtitle = "Your Complete Data Science Workspace"
     
-    # Gradient header
+    # Gradient header with consistent dimensions
     st.markdown(
         f"""
         <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-                    padding: 25px;
-                    border-radius: 15px;
-                    margin-bottom: 20px;
+                    padding: 18px 20px;
+                    border-radius: 12px;
+                    margin-bottom: 16px;
                     box-shadow: 0 10px 40px rgba(240, 147, 251, 0.3);">
-            <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 800;">
+            <div style="color: white; font-size: 24px; font-weight: 800; margin: 0;">
                 {icon} DataScope Pro - {page_title}
-            </h1>
-            <p style="color: rgba(255,255,255,0.95); margin: 8px 0 0 0; font-size: 16px;">
+            </div>
+            <div style="color: rgba(255,255,255,0.95); font-size: 15px; opacity: 0.95; margin-top: 6px;">
                 {subtitle}
-            </p>
+            </div>
         </div>
         """,
         unsafe_allow_html=True
@@ -93,10 +93,6 @@ def sidebar_dataset_status(df: Optional[pd.DataFrame], clean_df: Optional[pd.Dat
         )
         st.caption("Tip: Use Data Cleaning → save cleaned data to session.")
 
-        st.divider()
-        st.subheader("Guided Workflow")
-        _curated_sidebar_menu()
-
 
 def _curated_sidebar_menu() -> None:
     """Render a curated sidebar menu in DS→ML learning order.
@@ -128,7 +124,7 @@ def _curated_sidebar_menu() -> None:
     ]
 
     for idx, (path, label) in enumerate(menu_items):
-        if st.button(label, key=f"curated_menu_{idx}", use_container_width=True):
+        if st.button(label, key=f"curated_menu_{idx}", width="stretch"):
             st.switch_page(path)
 
 
@@ -180,7 +176,7 @@ def page_navigation(current_page: str) -> None:
     if prev_page:
         prev_file, prev_label = pages[prev_page]
         with col1:
-            if st.button(f"⬅️ Previous: {prev_label}", key=f"prev_page_{current_page}", use_container_width=True):
+            if st.button(f"⬅️ Previous: {prev_label}", key=f"prev_page_{current_page}", width="stretch"):
                 # Home page uses app.py, others use pages/filename.py
                 page_path = f"{prev_file}.py" if prev_page == "0" else f"pages/{prev_file}.py"
                 st.switch_page(page_path)
@@ -193,7 +189,7 @@ def page_navigation(current_page: str) -> None:
     if next_page:
         next_file, next_label = pages[next_page]
         with col3:
-            if st.button(f"Next: {next_label} ➡️", key=f"next_page_{current_page}", use_container_width=True):
+            if st.button(f"Next: {next_label} ➡️", key=f"next_page_{current_page}", width="stretch"):
                 # Home page uses app.py, others use pages/filename.py
                 page_path = f"{next_file}.py" if next_page == "0" else f"pages/{next_file}.py"
                 st.switch_page(page_path)

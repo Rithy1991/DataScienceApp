@@ -18,12 +18,12 @@ from plotly.subplots import make_subplots
 from src.core.config import load_config
 from src.core.state import get_clean_df, get_df
 from src.core.styles import inject_custom_css, render_stat_card
-from src.core.ui import instruction_block, page_navigation, sidebar_dataset_status
+from src.core.ui import app_header, instruction_block, page_navigation, sidebar_dataset_status
 from src.core.ai_helper import ai_sidebar_assistant
 
 
 def _plot(fig, key: str) -> None:
-    st.plotly_chart(fig, use_container_width=True, key=key)
+    st.plotly_chart(fig, width="stretch", key=key)
 
 
 def _generate_financial_timeseries(days: int = 365, seed: int = 42) -> pd.DataFrame:
@@ -125,21 +125,11 @@ ai_sidebar_assistant()
 # ===========================
 # Header
 # ===========================
-st.markdown(
-    """
-    <div style="
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 2rem;
-        border-radius: 12px;
-        margin-bottom: 2rem;
-        color: white;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    ">
-        <div style="font-size: 28px; font-weight: 800; margin-bottom: 8px;">📊 Visualization Journal & Practical Learning</div>
-        <div style="font-size: 16px; opacity: 0.95;">Master financial data visualization through hands-on exploration — from beginner to expert</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Visualization Journal",
+    subtitle="Master financial data visualization through hands-on exploration — from beginner to expert",
+    icon="📊"
 )
 
 instruction_block(
@@ -152,6 +142,67 @@ instruction_block(
         "🎨 **Beautiful charts** — Professional aesthetics with dark-mode design",
     ],
     expanded=True,
+)
+
+with st.expander("Quick-start practice prompts (save these in your notebook)", expanded=False):
+    st.markdown(
+        """
+        **When you open any chart, answer these out loud:**
+        - What is the question this chart answers? Write it in one sentence.
+        - Which axis is the *thing that matters*? Track how it moves over time or across categories.
+        - Where does the chart surprise you? Circle anomalies or sudden changes.
+        - How confident are you? If low, what data would you request next?
+
+        **Red flags to watch for:**
+        - Axes starting at non-zero without clear reason.
+        - Too many categories making labels unreadable.
+        - Mixed units on one chart (e.g., dollars and counts) without a secondary axis.
+        - Missing annotations for one-time events (product launches, outages).
+        """
+    )
+
+st.markdown("---")
+col_q1, col_q2, col_q3 = st.columns(3)
+with col_q1:
+    st.markdown(
+        """
+        ### 🧭 Chart selection playbook
+        - Trend over time → Line + rolling mean
+        - Parts of a whole → Bar (stacked) or Treemap
+        - Distribution → Histogram + KDE
+        - Relationship → Scatter + trendline
+        - Ranking → Sorted bar or dot plot
+        """
+    )
+with col_q2:
+    st.markdown(
+        """
+        ### 🔍 Interpretation checklist
+        - Identify peaks, drops, and flat zones
+        - Mark change-points and possible causes
+        - Compare rate of change, not just absolute values
+        - Note data freshness and sampling window
+        """
+    )
+with col_q3:
+    st.markdown(
+        """
+        ### 🚦 Decision lens
+        - What action would you take if trend continues?
+        - What metric would you monitor next week?
+        - What is your fallback if the signal vanishes?
+        """
+    )
+
+st.markdown("---")
+st.markdown(
+    """
+    ### 🎒 Mini practice missions
+    - **Spike hunt:** Find the largest one-day change and explain it in one sentence.
+    - **Stability check:** Identify a stable window; quantify variance vs. the rest.
+    - **Causality guard:** For any correlation you see, list two alternative explanations.
+    - **Annotation sprint:** Add two annotations that would make the chart clearer to a teammate.
+    """
 )
 
 # Session datasets
@@ -776,7 +827,7 @@ with intermediate_tab:
         """)
         
         pattern_days = st.slider("Days to analyze", 60, 180, 90, key="pattern_days")
-        subset = financial_df.tail(pattern_days)
+        subset = financial_df.tail(pattern_days).copy()
         
         # Find local maxima and minima for annotations
         window = 10

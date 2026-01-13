@@ -50,7 +50,7 @@ def ai_interpretation_box(
         if show_learn_more and context:
             col1, col2 = st.columns([3, 1])
             with col2:
-                if st.button("Ask AI →", key=f"ai_more_{hash(context)}", use_container_width=True):
+                if st.button("Ask AI →", key=f"ai_more_{hash(context)}", width="stretch"):
                     st.session_state["ai_context"] = context
                     st.switch_page("pages/7_AI_Insights_SLM_Powered.py")
 
@@ -125,7 +125,7 @@ def ai_sidebar_assistant() -> None:
             label_visibility="collapsed"
         )
         
-        if st.button("Ask AI", key="sidebar_ai_ask", use_container_width=True):
+        if st.button("Ask AI", key="sidebar_ai_ask", width="stretch"):
             if quick_question:
                 st.session_state["ai_context"] = quick_question
                 st.switch_page("pages/7_AI_Insights_SLM_Powered.py")

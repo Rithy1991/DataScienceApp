@@ -22,9 +22,9 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 
-from src.core.ui import page_navigation, sidebar_dataset_status
+from src.core.config import load_config
+from src.core.ui import app_header, page_navigation, sidebar_dataset_status
 from src.core.standardized_ui import (
-    standard_page_header,
     standard_section_header,
     beginner_tip,
     concept_explainer,
@@ -37,11 +37,14 @@ from src.core.standardized_ui import (
 
 st.set_page_config(layout="wide")
 
+config = load_config()
+
 # Page Header
-standard_page_header(
-    title="Classification Learning",
-    subtitle="Learn to predict categories using simple models with step-by-step guidance.",
-    icon="🧑‍🎓",
+app_header(
+    config,
+    page_title="Classification Learning",
+    subtitle="Learn to predict categories using simple models with step-by-step guidance",
+    icon="🧑‍🎓"
 )
 
 # Session dataset status in sidebar
@@ -63,6 +66,28 @@ concept_explainer(
 )
 
 beginner_tip("Tip: Start with clean data and a clear target column (the thing you want to predict).")
+
+st.markdown(
+    """
+    ### 🧭 Fast practice kit
+    - **Define success:** Pick the metric that matters for your problem (recall for fraud, precision for spam, F1 for imbalance).
+    - **Label sanity check:** Inspect 20 random rows to confirm labels look correct.
+    - **Baseline first:** Always train a simple Logistic Regression before complex models.
+    - **Imbalance?** Use class weights or resampling; avoid judging by accuracy alone.
+    - **Hold-out discipline:** Keep a test split untouched until the end.
+    """
+)
+
+with st.expander("Common traps to avoid", expanded=False):
+    st.markdown(
+        """
+        - **Data leakage:** Features that peek into the future (post-outcome timestamps, aggregated labels).
+        - **Mismatched encodings:** Train on label-encoded categories but predict on unseen labels without handling unknowns.
+        - **Threshold tunnel vision:** Moving the probability threshold without checking calibration.
+        - **One-size metrics:** Using accuracy on imbalanced data; prefer precision/recall/AUC.
+        - **No error review:** Inspect misclassified examples to learn patterns your model misses.
+        """
+    )
 
 # Dataset selection / sample fallback
 standard_section_header("Step 2: Load or Select Your Dataset", "📂")
@@ -92,7 +117,7 @@ if df is None:
 if df is None:
     st.stop()
 
-st.dataframe(df.head(10), use_container_width=True)
+st.dataframe(df.head(10), width="stretch")
 st.caption(f"{df.shape[0]} rows × {df.shape[1]} columns")
 
 # Target selection
@@ -129,7 +154,7 @@ dist_df = pd.DataFrame({
     "Count": class_counts.values,
     "Percentage": class_pct.values,
 })
-st.dataframe(dist_df, use_container_width=True)
+st.dataframe(dist_df, width="stretch")
 
 # Auto-detect and offer to merge rare classes (< 2 samples)
 rare_classes = class_counts[class_counts < 2].index.tolist()
@@ -147,7 +172,7 @@ if rare_classes:
             "Count": class_counts_new.values,
             "Percentage": class_pct_new.values,
         }).sort_values("Count", ascending=False)
-        st.dataframe(dist_df_new, use_container_width=True)
+        st.dataframe(dist_df_new, width="stretch")
 
 # Feature selection
 feature_cols = [c for c in df.columns if c != target_col]
@@ -393,7 +418,7 @@ if train_btn:
     cm = confusion_matrix(y_test, y_pred, labels=np.arange(len(class_labels)))
     fig = go.Figure(data=go.Heatmap(z=cm, x=class_labels, y=class_labels, colorscale="Blues", showscale=True, text=cm, texttemplate="%{text}", textfont={"size":14}))
     fig.update_layout(title="Confusion Matrix - Darker = More Predictions", xaxis_title="Predicted Class", yaxis_title="Actual Class", height=500)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     st.markdown("""
     ---
@@ -522,26 +547,34 @@ if train_btn:
 
     # ROC Curves and Macro AUC (if probabilities available)
     if hasattr(model, "predict_proba"):
-        try:
-            proba = np.asarray(model.predict_proba(X_test))
-            y_bin = np.asarray(label_binarize(y_test, classes=np.arange(len(class_labels))))
-            auc_macro = roc_auc_score(y_bin, proba, average="macro", multi_class="ovr")
+        unique_test_classes = np.unique(y_test)
+        if unique_test_classes.size < 2:
+            st.info("ROC/AUC skipped: only one class present in test split. Add more data or adjust your split.")
+        else:
+            try:
+                proba = np.asarray(model.predict_proba(X_test))
+                y_bin = np.asarray(label_binarize(y_test, classes=np.arange(len(class_labels))))
+                auc_macro = roc_auc_score(y_bin, proba, average="macro", multi_class="ovr")
 
-            standard_section_header("ROC Curves & Macro AUC", "📉")
-            fig_roc = go.Figure()
-            for i, label in enumerate(class_labels):
-                fpr, tpr, _ = roc_curve(y_bin[:, i], proba[:, i])
-                fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines", name=f"Class {label}"))
-            fig_roc.add_trace(
-                go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Random", line=dict(dash="dash", color="#999"))
-            )
-            fig_roc.update_layout(title=f"ROC Curves (Macro AUC = {auc_macro:.3f})", xaxis_title="False Positive Rate", yaxis_title="True Positive Rate")
-            st.plotly_chart(fig_roc, use_container_width=True)
+                standard_section_header("ROC Curves & Macro AUC", "📉")
+                fig_roc = go.Figure()
+                for i, label in enumerate(class_labels):
+                    fpr, tpr, _ = roc_curve(y_bin[:, i], proba[:, i])
+                    fig_roc.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines", name=f"Class {label}"))
+                fig_roc.add_trace(
+                    go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Random", line=dict(dash="dash", color="#999"))
+                )
+                fig_roc.update_layout(
+                    title=f"ROC Curves (Macro AUC = {auc_macro:.3f})",
+                    xaxis_title="False Positive Rate",
+                    yaxis_title="True Positive Rate",
+                )
+                st.plotly_chart(fig_roc, width="stretch")
 
-            # Show AUC card
-            metric_card("Macro AUC", f"{auc_macro:.3f}", "Area under ROC across classes (one-vs-rest). Higher is better.")
-        except Exception as e:
-            st.caption(f"ROC/AUC not available: {e}")
+                # Show AUC card
+                metric_card("Macro AUC", f"{auc_macro:.3f}", "Area under ROC across classes (one-vs-rest). Higher is better.")
+            except Exception as e:
+                st.caption(f"ROC/AUC not available: {e}")
 
     # Explainability: Permutation Importance (works for most models)
     try:
@@ -552,7 +585,7 @@ if train_btn:
             "Feature": X_encoded.columns,
             "Importance": result.importances_mean,
         }).sort_values("Importance", ascending=False)
-        st.dataframe(importances.head(10), use_container_width=True)
+        st.dataframe(importances.head(10), width="stretch")
         st.caption("Higher importance means the feature contributes more to model performance. Computed via shuffling feature values and measuring drop in F1-macro.")
     except Exception as e:
         st.caption(f"Feature importance unavailable: {e}")
@@ -577,7 +610,7 @@ if train_btn:
                 "Feature": X_encoded.columns,
                 "Mean |SHAP|": mean_abs,
             }).sort_values("Mean |SHAP|", ascending=False)
-            st.dataframe(shap_df.head(10), use_container_width=True)
+            st.dataframe(shap_df.head(10), width="stretch")
             st.caption("Mean absolute SHAP values indicate average feature impact on predictions. Requires 'shap' package.")
         except Exception as e:
             st.caption(f"SHAP explainability unavailable: {e}. Tip: pip install shap")

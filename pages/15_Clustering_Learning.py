@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import silhouette_score, silhouette_samples
 import matplotlib.cm as cm
 
-from src.core.ui import page_navigation, sidebar_dataset_status, instruction_block
+from src.core.config import load_config
+from src.core.ui import app_header, page_navigation, sidebar_dataset_status, instruction_block
 from src.core.standardized_ui import (
-    standard_page_header,
     standard_section_header,
     beginner_tip,
     before_after_comparison,
@@ -27,13 +27,16 @@ from src.core.styles import inject_custom_css
 
 st.set_page_config(page_title="Clustering Learning", layout="wide", initial_sidebar_state="expanded")
 
+config = load_config()
 inject_custom_css()
 
-standard_page_header(
-    title="Clustering Learning",
-    subtitle="Discover groups and patterns in unsupervised data with KMeans, elbow method, and silhouette analysis.",
-    icon="🧑‍🎓",
+app_header(
+    config,
+    page_title="Clustering Learning",
+    subtitle="Complete guide to unsupervised learning with elbow method, silhouette scores, and cluster interpretation",
+    icon="🧑‍🎓"
 )
+
 sidebar_dataset_status(st.session_state.get("raw_df"), st.session_state.get("clean_df"))
 
 instruction_block(
@@ -79,7 +82,7 @@ if df is not None:
     with col3:
         metric_card("Missing", f"{df.isnull().sum().sum()}", "Total NaN values")
     
-    st.dataframe(df.head(10), use_container_width=True)
+    st.dataframe(df.head(10), width="stretch")
     beginner_tip("💡 **Note**: Clustering is *unsupervised* — no target column needed. It discovers groups automatically.")
 else:
     st.info("Upload a CSV or use the sample dataset to begin.")
@@ -152,7 +155,7 @@ with col_e1:
 with col_e2:
     k_max = st.number_input("Max K", min_value=k_min+1, max_value=30, value=10, step=1)
 
-if st.button("🔍 Compute Elbow Curve", use_container_width=True, type="primary"):
+if st.button("🔍 Compute Elbow Curve", width="stretch", type="primary"):
     try:
         ks = list(range(int(k_min), int(k_max) + 1))
         inertias = []
@@ -186,7 +189,7 @@ if st.button("🔍 Compute Elbow Curve", use_container_width=True, type="primary
                 hovermode='x unified',
                 height=400
             )
-            st.plotly_chart(fig_inertia, use_container_width=True)
+            st.plotly_chart(fig_inertia, width="stretch")
             st.caption("Look for the 'elbow' where inertia stops dropping sharply.")
         
         with col_plot2:
@@ -205,7 +208,7 @@ if st.button("🔍 Compute Elbow Curve", use_container_width=True, type="primary
                 hovermode='x unified',
                 height=400
             )
-            st.plotly_chart(fig_silhouette, use_container_width=True)
+            st.plotly_chart(fig_silhouette, width="stretch")
             st.caption("Higher silhouette scores indicate better-defined clusters (+1 = perfect, 0 = overlapping).")
         
         # Find recommended K
@@ -232,7 +235,7 @@ with col_k1:
 with col_k2:
     random_state = st.number_input("Random seed (for reproducibility)", value=42, min_value=0)
 
-if st.button("▶️ Run KMeans", type="primary", use_container_width=True):
+if st.button("▶️ Run KMeans", type="primary", width="stretch"):
     with st.spinner("Computing clusters..."):
         kmeans = KMeans(n_clusters=k, random_state=int(random_state), n_init=10)
         clusters = kmeans.fit_predict(X_scaled)
@@ -266,7 +269,7 @@ if st.button("▶️ Run KMeans", type="primary", use_container_width=True):
                 labels={'x': 'Cluster', 'y': 'Number of Points'},
                 color=cluster_counts.index.astype(str)
             )
-            st.plotly_chart(fig_sizes, use_container_width=True)
+            st.plotly_chart(fig_sizes, width="stretch")
         
         with col_dist2:
             st.write("**Cluster Summary:**")
@@ -286,7 +289,7 @@ if st.button("▶️ Run KMeans", type="primary", use_container_width=True):
                 color_discrete_sequence=px.colors.qualitative.Set1,
                 hover_data={numeric_features[0]: ':.2f', numeric_features[1]: ':.2f', 'Cluster': True}
             )
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            st.plotly_chart(fig_scatter, width="stretch")
         
         # Silhouette plot
         st.subheader("Silhouette Analysis (Advanced)")
@@ -325,9 +328,9 @@ if st.button("▶️ Run KMeans", type="primary", use_container_width=True):
         # Cluster profiles
         st.subheader("Cluster Profiles (Feature Statistics)")
         cluster_profiles = df_result.groupby('Cluster')[numeric_features].agg(['mean', 'std', 'min', 'max'])
-        st.dataframe(cluster_profiles.round(2), use_container_width=True)
+        st.dataframe(cluster_profiles.round(2), width="stretch")
         
-        st.dataframe(df_result.head(20), use_container_width=True)
+        st.dataframe(df_result.head(20), width="stretch")
 
 else:
     st.info("👆 Adjust K and click 'Run KMeans' to generate clusters.")

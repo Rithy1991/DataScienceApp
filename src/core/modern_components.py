@@ -68,7 +68,7 @@ def smart_data_preview(
         # Data sample
         st.dataframe(
             df.head(max_rows),
-            use_container_width=True,
+            width="stretch",
             height=min(400, (max_rows + 1) * 35)
         )
         
@@ -81,7 +81,7 @@ def smart_data_preview(
                 'Null Count': df.isnull().sum().values,
                 'Unique': [df[col].nunique() for col in df.columns]
             })
-            st.dataframe(dtypes_df, use_container_width=True)
+            st.dataframe(dtypes_df, width="stretch")
 
 
 def auto_data_profile(df: pd.DataFrame) -> None:
@@ -244,11 +244,11 @@ def comparison_table(
             return [''] * len(row)
         
         styled_df = df.style.apply(highlight_row, axis=1)
-        st.dataframe(styled_df, use_container_width=True)
+        st.dataframe(styled_df, width="stretch")
         
         st.caption(f"🏆 Best performer highlighted (by {highlight_best})")
     else:
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width="stretch")
 
 
 def guided_workflow(
@@ -344,7 +344,7 @@ def enhanced_chart(
         margin=dict(l=60, r=40, t=60, b=60)
     )
     
-    st.plotly_chart(fig, use_container_width=True, config={
+    st.plotly_chart(fig, width="stretch", config={
         'displayModeBar': True,
         'displaylogo': False,
         'modeBarButtonsToRemove': ['select2d', 'lasso2d']
@@ -411,7 +411,7 @@ def success_message_with_next_steps(
         st.markdown(f"{idx}. {step}")
     
     if action_button:
-        if st.button(f"➡️ {action_button['label']}", type="primary", use_container_width=True):
+        if st.button(f"➡️ {action_button['label']}", type="primary", width="stretch"):
             st.switch_page(f"pages/{action_button['page']}.py")
 
 

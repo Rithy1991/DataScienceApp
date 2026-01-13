@@ -6,7 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 from src.core.config import load_config
-from src.core.ui import instruction_block, sidebar_dataset_status, page_navigation
+from src.core.ui import app_header, instruction_block, sidebar_dataset_status, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -25,17 +25,11 @@ inject_custom_css()
 ai_sidebar_assistant()
 
 # --- Header ---
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">📘 Data Science Academy</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">
-            A complete interactive curriculum: From Python basics to production-grade ML.
-            <br>Learn by doing with real-world labs and copy-pasteable best practices.
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Data Science Academy",
+    subtitle="A complete interactive curriculum: From Python basics to production-grade ML. Learn by doing with real-world labs and copy-pasteable best practices",
+    icon="🎓"
 )
 
 # --- Outcomes ---
@@ -348,7 +342,7 @@ selected_lab = st.selectbox(
 # Lab Controls
 col_lab_1, col_lab_2 = st.columns([1, 3])
 with col_lab_1:
-    if st.button("🚀 Launch Lab", type="primary", use_container_width=True):
+    if st.button("🚀 Launch Lab", type="primary", width="stretch"):
         st.session_state['current_lab'] = selected_lab
         with st.spinner(f"Generating realistic {selected_lab} data..."):
             st.session_state['lab_df'] = get_lab(selected_lab)
@@ -374,7 +368,7 @@ if 'lab_df' in st.session_state and 'current_lab' in st.session_state:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**First 5 rows:**")
-            st.dataframe(df_lab.head(), use_container_width=True)
+            st.dataframe(df_lab.head(), width="stretch")
         with c2:
             st.markdown("**Data Types & Missing:**")
             info_df = pd.DataFrame({
@@ -382,7 +376,7 @@ if 'lab_df' in st.session_state and 'current_lab' in st.session_state:
                 'Missing': df_lab.isna().sum(),
                 'Missing %': (df_lab.isna().mean() * 100).round(1)
             })
-            st.dataframe(info_df, use_container_width=True)
+            st.dataframe(info_df, width="stretch")
             
         st.warning("⚠️ Action Required: Look for missing values in critical columns and outliers in numeric fields.")
 
@@ -397,19 +391,19 @@ if 'lab_df' in st.session_state and 'current_lab' in st.session_state:
             if numeric_cols:
                 y_axis = st.selectbox("Select Numeric Variable", numeric_cols, key="lab_num_y")
                 fig_hist = px.histogram(df_lab, x=y_axis, title=f"Distribution of {y_axis}", marginal="box")
-                st.plotly_chart(fig_hist, use_container_width=True)
+                st.plotly_chart(fig_hist, width="stretch")
                 
         with col_eda_2:
             if len(numeric_cols) > 1:
                 x_axis = st.selectbox("Select X Axis", numeric_cols, key="lab_num_x")
                 fig_scat = px.scatter(df_lab, x=x_axis, y=y_axis, title=f"{x_axis} vs {y_axis}")
-                st.plotly_chart(fig_scat, use_container_width=True)
+                st.plotly_chart(fig_scat, width="stretch")
                 
         if len(numeric_cols) > 1:
             st.markdown("**Correlation Heatmap**")
             corr = df_lab[numeric_cols].corr()
             fig_corr = px.imshow(corr, text_auto=True, color_continuous_scale='RdBu_r', title="Correlation Matrix")
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_corr, width="stretch")
 
     with lab_tabs[2]:
         st.markdown("### 🤖 Modeling Sandbox")
@@ -445,7 +439,7 @@ if 'lab_df' in st.session_state and 'current_lab' in st.session_state:
                         
                         fig = px.scatter(x=y, y=preds, labels={'x': 'Actual', 'y': 'Predicted'}, title="Actual vs Predicted")
                         fig.add_shape(type="line", x0=y.min(), y0=y.max(), x1=y.min(), y1=y.max(), line=dict(color="Red", dash="dash"))
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                         
                     else:
                         from sklearn.ensemble import RandomForestClassifier

@@ -13,7 +13,7 @@ from scipy import stats
 
 from src.core.config import load_config
 from src.core.state import get_clean_df, get_df, set_df, set_clean_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -35,14 +35,11 @@ inject_custom_css()
 # Add AI assistant for interpretation help
 ai_sidebar_assistant()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">📊 Data Analysis (EDA)</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Explore quality, patterns, and relationships before you model.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Data Analysis & EDA",
+    subtitle="Explore quality, patterns, and relationships before you model",
+    icon="📊"
 )
 
 instruction_block(
@@ -106,7 +103,7 @@ if df is None:
     st.warning("No data loaded. Use the Cleaning page or load a quick sample to explore.")
     col_sample, col_upload = st.columns([1.2, 1])
     with col_sample:
-        if st.button("Load sample dataset (Retail Sales)", type="primary", use_container_width=True):
+        if st.button("Load sample dataset (Retail Sales)", type="primary", width="stretch"):
             sample = pd.DataFrame(
                 {
                     "date": pd.date_range("2024-01-01", periods=180, freq="D"),
@@ -157,7 +154,7 @@ with st.expander("Edit data (session-scoped)", expanded=False):
     edited = st.data_editor(
         edit_target,
         num_rows="dynamic",
-        use_container_width=True,
+        width="stretch",
         height=400,
     )
     st.session_state["eda_manual_df"] = edited
@@ -262,7 +259,7 @@ with tab1:
                 color_continuous_scale="Reds"
             )
             fig.update_layout(xaxis_tickangle=-45, height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         
         with col2:
             st.markdown("**Missing Data Strategy:**")
@@ -280,7 +277,7 @@ with tab1:
     if desc.empty:
         st.info("No numeric columns in dataset.")
     else:
-        st.dataframe(desc, use_container_width=True)
+        st.dataframe(desc, width="stretch")
         
         with st.expander("📚 Understanding Statistics"):
             st.markdown("""
@@ -350,7 +347,7 @@ with tab2:
                     color_continuous_scale="RdBu",
                     zmin=-1, zmax=1
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             
             # Find strong correlations
             st.subheader("🔍 Strong Correlations (> threshold)")
@@ -366,7 +363,7 @@ with tab2:
             
             if strong_corrs:
                 strong_df = __import__('pandas').DataFrame(strong_corrs).sort_values('Correlation', key=abs, ascending=False)
-                st.dataframe(strong_df, use_container_width=True)
+                st.dataframe(strong_df, width="stretch")
             else:
                 st.caption("No correlations exceed threshold")
     else:
@@ -391,7 +388,7 @@ with tab2:
             color=cat_col
         )
         fig.update_layout(xaxis_tickangle=-45, height=500)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.caption("Need categorical and numeric columns")
 
@@ -444,7 +441,7 @@ with tab3:
             marginal="rug",
             hover_data={num_col: ":.4f"}
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Distribution insights
         col_data = df[num_col].dropna()
@@ -487,7 +484,7 @@ with tab3:
             color_continuous_scale="Viridis"
         )
         fig.update_layout(xaxis_tickangle=-45, height=400)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No categorical columns")
     
@@ -509,7 +506,7 @@ with tab3:
             title="🔗 Pairwise Relationships",
             color_continuous_scale="Viridis"
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.caption("Select 2-6 numeric columns to see pairwise scatter plots")
 
@@ -563,7 +560,7 @@ with tab4:
         with col2:
             st.metric("Current threshold", f"{z_threshold:.1f}σ", help="Standard deviations from mean")
         
-        if st.button("🔍 Scan for anomalies", use_container_width=True, disabled=(len(cols_a) == 0)):
+        if st.button("🔍 Scan for anomalies", width="stretch", disabled=(len(cols_a) == 0)):
             with st.spinner("Analyzing data for anomalies..."):
                 anomalies = detect_anomaly_zscore(df, cols=cols_a, z=z_threshold)
                 
@@ -571,7 +568,7 @@ with tab4:
                     st.success("✅ No anomalies detected!")
                 else:
                     st.warning(f"⚠️ Found {len(anomalies)} anomalies")
-                    st.dataframe(anomalies, use_container_width=True)
+                    st.dataframe(anomalies, width="stretch")
                     
                     # Visualization
                     if len(cols_a) > 0:
@@ -583,7 +580,7 @@ with tab4:
                             color=[i in anomalies.index for i in range(len(df))],
                             color_discrete_map={True: "red", False: "blue"}
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No numeric columns to analyze")
     
@@ -691,7 +688,7 @@ with tab5:
                     fig.add_trace(go.Scatter(x=qq[0][0], y=qq[0][1], mode='markers', name='Data'))
                     fig.add_trace(go.Scatter(x=qq[0][0], y=qq[0][0], mode='lines', name='Normal', line=dict(color='red', dash='dash')))
                     fig.update_layout(title="Q-Q Plot", xaxis_title="Theoretical Quantiles", yaxis_title="Sample Quantiles", height=400)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 else:
                     st.error("Need at least 3 data points")
         else:
@@ -800,7 +797,7 @@ with tab5:
                 
                 # Show contingency table
                 with st.expander("View Contingency Table"):
-                    st.dataframe(contingency, use_container_width=True)
+                    st.dataframe(contingency, width="stretch")
         else:
             st.info("Need at least 2 categorical columns")
     
@@ -860,7 +857,7 @@ with tab6:
         })
     
     profile_df = pd.DataFrame(profile_data)
-    st.dataframe(profile_df, use_container_width=True, hide_index=True)
+    st.dataframe(profile_df, width="stretch", hide_index=True)
     
     st.divider()
     
@@ -894,7 +891,7 @@ with tab6:
         })
     
     cardinality_df = pd.DataFrame(cardinality_data).sort_values("Unique Values", ascending=False)
-    st.dataframe(cardinality_df, use_container_width=True, hide_index=True)
+    st.dataframe(cardinality_df, width="stretch", hide_index=True)
     
     st.divider()
     
@@ -951,7 +948,7 @@ with tab6:
         height=350,
         showlegend=False
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     
     st.divider()
     
@@ -989,7 +986,7 @@ with tab6:
         fig = go.Figure()
         fig.add_trace(go.Histogram(x=col_data.dropna(), nbinsx=50, name="Distribution"))
         fig.update_layout(title=f"Distribution of {selected_col}", height=300)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.markdown("**Categorical Statistics**")
         top_values = col_data.value_counts().head(10)
@@ -997,10 +994,10 @@ with tab6:
         fig = go.Figure()
         fig.add_trace(go.Bar(x=top_values.index.astype(str), y=top_values.values))
         fig.update_layout(title=f"Top 10 Values in {selected_col}", height=300)
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         with st.expander("View All Value Counts"):
-            st.dataframe(col_data.value_counts().reset_index(), use_container_width=True, hide_index=True)
+            st.dataframe(col_data.value_counts().reset_index(), width="stretch", hide_index=True)
 
 with tab7:
     st.subheader("⏰ Time Series Analysis")
@@ -1088,7 +1085,7 @@ with tab7:
                 fig = px.bar(x=counts.index, y=counts.values, labels={'x': 'Hour', 'y': 'Count'}, title="Daily Pattern (by Hour)")
             
             fig.update_layout(height=350)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             
             st.divider()
             
@@ -1110,7 +1107,7 @@ with tab7:
                         fig.add_trace(go.Scatter(x=rolling_mean.index, y=rolling_mean.values, mode='lines', name='7-day Moving Average', line=dict(dash='dash')))
                     
                     fig.update_layout(title=f"{value_col} Over Time", xaxis_title="Date", yaxis_title=value_col, height=400)
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     # Trend statistics
                     col1, col2, col3 = st.columns(3)
@@ -1157,9 +1154,9 @@ with tab8:
             
             fig = px.bar(var_df.head(20), x="Feature", y="Variance", title="Top 20 Features by Variance", color="Variance", color_continuous_scale="Viridis")
             fig.update_layout(xaxis_tickangle=-45, height=400)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             
-            st.dataframe(var_df, use_container_width=True, hide_index=True)
+            st.dataframe(var_df, width="stretch", hide_index=True)
     else:
         st.info("No numeric columns available")
     
@@ -1228,7 +1225,7 @@ with tab8:
                         yaxis2=dict(title="Cumulative (%)", overlaying='y', side='right'),
                         height=350
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     # Recommendation
                     n_components_90 = np.argmax(cumsum_var >= 90) + 1
@@ -1281,7 +1278,7 @@ with tab8:
                     ),
                     height=500
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
                 
                 # Statistics
                 col1, col2, col3 = st.columns(3)
@@ -1341,7 +1338,7 @@ with tab8:
         
         if recommendations:
             rec_df = pd.DataFrame(recommendations)
-            st.dataframe(rec_df, use_container_width=True, hide_index=True)
+            st.dataframe(rec_df, width="stretch", hide_index=True)
             
             st.info("💡 **Note:** Apply transformations in the Data Cleaning page or during model training")
         else:

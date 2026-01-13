@@ -6,6 +6,7 @@ covering Beginner, Intermediate, and Advanced flows with education-first UI.
 """
 
 import datetime as dt
+import io
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -13,7 +14,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-from src.core.ui import page_navigation
+from src.core.ui import app_header, page_navigation
+from src.core.config import load_config
 from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -44,7 +46,7 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import RandomizedSearchCV, train_test_split
+from sklearn.model_selection import ParameterGrid, RandomizedSearchCV, train_test_split
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from sklearn.naive_bayes import GaussianNB
 from sklearn.inspection import permutation_importance
@@ -87,6 +89,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+config = load_config()
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -198,8 +202,12 @@ def info_box(text: str, icon: str = "ℹ️"):
 # UI
 # ---------------------------------------------------------------------------
 
-st.title("💎 ML Platform Studio")
-st.caption("Complete end-to-end ML workflow: Data → EDA → Train → Evaluate → Explain → Predict")
+app_header(
+    config,
+    page_title="ML Platform Studio",
+    subtitle="Complete end-to-end ML workflow: Data → EDA → Train → Evaluate → Explain → Predict",
+    icon="💎"
+)
 
 st.markdown("""
 ### 📋 Workflow Guide
@@ -239,6 +247,7 @@ if "platform_data" not in st.session_state:
     st.session_state.platform_target = None
     st.session_state.platform_task = None
     st.session_state.platform_thresholds = {}
+    st.session_state.platform_models = {}
 
 if sample != "Upload CSV":
     X_raw, y_raw, task_type = get_sample_dataset(sample.split()[0])
@@ -297,7 +306,7 @@ with st.expander("📋 Data Overview", expanded=True):
     colC.metric("Missing (%)", round(X.isna().mean().mean() * 100, 2))
     
     st.markdown("**Sample of your data:**")
-    st.dataframe(X.head(), use_container_width=True)
+    st.dataframe(X.head(), width="stretch")
     
     st.markdown("""
     💡 **Data Quality Tips:**
@@ -324,7 +333,7 @@ with st.expander("📊 Feature Distributions", expanded=False):
     if num_cols:
         feature = st.selectbox("Numeric feature", num_cols)
         fig = px.histogram(viz_df, x=feature, nbins=25, marginal="box")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("No numeric features found for visualization")
 
@@ -338,7 +347,7 @@ with st.expander("🔗 Feature Relationships", expanded=False):
     if len(num_cols) >= 2:
         f1, f2 = st.selectbox("X-axis", num_cols, key="scatter_x"), st.selectbox("Y-axis", num_cols, key="scatter_y")
         fig2 = px.scatter(viz_df, x=f1, y=f2, color=y.loc[viz_df.index] if len(np.unique(y))<15 else None)
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
     else:
         st.info("Need at least 2 numeric features for scatter plots")
 
@@ -355,7 +364,7 @@ with st.expander("🔥 Correlation Heatmap", expanded=False):
         corr = corr_df.corr()
         fig = px.imshow(corr, color_continuous_scale="RdBu", origin="lower", 
                        zmin=-1, zmax=1, text_auto=".2f")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info("Need at least 2 numeric features to compute correlation")
 
@@ -530,7 +539,7 @@ with st.expander("🚀 Train Models", expanded=True):
             """)
         
         results_df = pd.DataFrame(results)
-        st.dataframe(results_df, use_container_width=True)
+        st.dataframe(results_df, width="stretch")
         
         st.markdown("""
         💡 **Model Selection Tips:**
@@ -545,11 +554,11 @@ with st.expander("🚀 Train Models", expanded=True):
         if current_task == "classification" and len(model_choice) > 0:
             st.markdown("**F1 Score Comparison** - Higher bars indicate better balance of precision & recall")
             figm = px.bar(results_df, x="model", y="f1", title="F1 scores")
-            st.plotly_chart(figm, use_container_width=True)
+            st.plotly_chart(figm, width="stretch")
             if "pr_auc" in results_df.columns:
                 st.markdown("**PR-AUC Comparison** - Especially useful for imbalanced datasets")
                 fig_pr = px.bar(results_df, x="model", y="pr_auc", title="PR-AUC (imbalance friendly)")
-                st.plotly_chart(fig_pr, use_container_width=True)
+                st.plotly_chart(fig_pr, width="stretch")
             calib_source = next(((n, proba_cache[n]) for n in model_choice if isinstance(proba_cache.get(n), np.ndarray) and proba_cache[n].ndim == 1), None)
             if calib_source:
                 name, probs = calib_source
@@ -564,7 +573,7 @@ with st.expander("🚀 Train Models", expanded=True):
                     fig_cal.update_layout(title="Calibration curve (reliability diagram)", 
                                          xaxis_title="Mean predicted probability", 
                                          yaxis_title="Fraction of positives")
-                    st.plotly_chart(fig_cal, use_container_width=True)
+                    st.plotly_chart(fig_cal, width="stretch")
                     st.markdown("""
                     **Calibration Curve Interpretation:**
                     - **Diagonal line**: Perfect calibration (predicted probabilities match reality)
@@ -577,15 +586,15 @@ with st.expander("🚀 Train Models", expanded=True):
         if current_task == "regression" and len(model_choice) > 0:
             st.markdown("**RMSE Comparison** - Lower bars are better; shows average prediction error")
             figm = px.bar(results_df, x="model", y="rmse", title="RMSE (lower is better)")
-            st.plotly_chart(figm, use_container_width=True)
+            st.plotly_chart(figm, width="stretch")
             if "mape" in results_df.columns:
                 st.markdown("**MAPE Comparison** - Percentage error; easier to interpret across scales")
                 fig_mape = px.bar(results_df, x="model", y="mape", title="MAPE (lower is better)")
-                st.plotly_chart(fig_mape, use_container_width=True)
+                st.plotly_chart(fig_mape, width="stretch")
             if "medae" in results_df.columns:
                 st.markdown("**Median AE** - Most robust to outliers; reliable error estimate")
                 fig_medae = px.bar(results_df, x="model", y="medae", title="Median AE (robust)")
-                st.plotly_chart(fig_medae, use_container_width=True)
+                st.plotly_chart(fig_medae, width="stretch")
 
 # ---------------------------------------------------------------------------
 # STEP 6: Advanced Tuning (Optional)
@@ -633,7 +642,9 @@ with st.expander("🔧 Hyperparameter Search", expanded=False):
             base = RandomForestClassifier() if current_task=="classification" else RandomForestRegressor()
             param = {}
         pipe = Pipeline(steps=[("prep", pre), ("model", base)])
-        search = RandomizedSearchCV(pipe, param, n_iter=n_iter, cv=3, n_jobs=-1, random_state=42)
+        grid_size = max(1, len(ParameterGrid(param)) if param else 1)
+        n_iter_safe = min(n_iter, grid_size)
+        search = RandomizedSearchCV(pipe, param, n_iter=n_iter_safe, cv=3, n_jobs=-1, random_state=42)
         search.fit(X_train, y_train)
         y_pred = search.predict(X_test)
         y_proba = None
@@ -683,7 +694,7 @@ with st.expander("🎯 Feature Importance", expanded=False):
             pi = permutation_importance(model, pi_df, pi_target, n_repeats=8, random_state=42, n_jobs=-1)
             imp_df = pd.DataFrame({"feature": X.columns, "importance": pi.importances_mean})
             fig = px.bar(imp_df.sort_values("importance"), x="importance", y="feature", orientation="h")
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
     else:
         st.info("Train a model first")
 
@@ -774,14 +785,54 @@ with st.expander("📦 Batch Predictions", expanded=False):
             if trained_features is not None:
                 upload_cols = [str(c) for c in df_batch.columns]
                 missing_cols = set(trained_features) - set(upload_cols)
+                
                 if missing_cols:
-                    st.error(f"\u274c Missing columns in uploaded data: {missing_cols}")
-                    st.info(f"Expected columns: {list(trained_features)}")
-                    st.stop()
+                    st.warning(f"⚠️ Missing columns detected: {missing_cols}")
+                    st.markdown("**Map your columns to training features:**")
+                    
+                    col_mapping = {}
+                    cols_matched = st.columns(min(3, len(missing_cols)))
+                    
+                    for idx, trained_col in enumerate(sorted(missing_cols)):
+                        col_idx = idx % len(cols_matched)
+                        with cols_matched[col_idx]:
+                            selected = st.selectbox(
+                                f"Map to '{trained_col}'",
+                                ["-- Skip --"] + upload_cols,
+                                key=f"col_map_{trained_col}"
+                            )
+                            if selected != "-- Skip --":
+                                col_mapping[selected] = trained_col
+                    
+                    # Apply mapping: create new columns with mapped names
+                    for src, dst in col_mapping.items():
+                        if src in df_batch.columns:
+                            df_batch[dst] = df_batch[src]
+                    
+                    # Re-check after mapping
+                    missing_cols = set(trained_features) - set(df_batch.columns)
+                    if missing_cols:
+                        st.error(f"❌ Still missing columns after mapping: {missing_cols}. Cannot proceed.")
+                        st.stop()
+                
+                # Offer a template CSV for the expected schema
+                template_buf = io.StringIO()
+                pd.DataFrame(columns=trained_features).to_csv(template_buf, index=False)
+                st.download_button(
+                    "Download template CSV",
+                    template_buf.getvalue(),
+                    file_name="batch_template.csv",
+                    mime="text/csv",
+                    width="stretch",
+                )
+                
+                # Reorder to match training order
+                df_batch = df_batch[trained_features]
+            
             preds = model.predict(df_batch)
             df_out = df_batch.copy()
             df_out["prediction"] = preds
-            st.dataframe(df_out.head(), use_container_width=True)
+            st.dataframe(df_out.head(), width="stretch")
             st.download_button("Download predictions", df_out.to_csv(index=False), file_name="predictions.csv", mime="text/csv")
     else:
         st.info("Train a model first")
@@ -832,13 +883,13 @@ if st.session_state.get("platform_models"):
                 metrics["group_max"] = float(rates.max())
         entries.append({"model": name, **metrics})
     cmp_df = pd.DataFrame(entries)
-    st.dataframe(cmp_df, use_container_width=True)
+    st.dataframe(cmp_df, width="stretch")
     if current_task == "classification":
         fig = px.bar(cmp_df, x="model", y="f1", title="F1 by model")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     else:
         fig = px.bar(cmp_df, x="model", y="rmse", title="RMSE by model (lower is better)")
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 else:
     st.info("Train at least one model to compare.")
 
@@ -887,7 +938,7 @@ suggestions.append("🚀 **Next level**: Try stacking/blending models for 1-3% p
 for s in suggestions:
     st.markdown(f"- {s}")
 
-st.caption(f"Session: {dt.datetime.utcnow().isoformat()} | Dataset size: {len(X)} rows | Task: {current_task}")
+st.caption(f"Session: {dt.datetime.now(dt.UTC).isoformat()} | Dataset size: {len(X)} rows | Task: {current_task}")
 
 # Footer navigation
 page_navigation("23")

@@ -17,7 +17,7 @@ st.set_page_config(page_title="DataScope Pro - Feature Engineering", layout="wid
 
 from src.core.config import load_config
 from src.core.state import get_clean_df, get_df, set_clean_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import inject_custom_css
 from src.core.ai_helper import ai_sidebar_assistant
 from src.core.platform_ui import module_section
@@ -168,7 +168,7 @@ def _feature_selection(df: pd.DataFrame):
                 c1, c2 = st.columns([2,1])
                 with c1:
                     fig = px.bar(corr, orientation='h', title="Feature Correlation with Target")
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                 with c2:
                     st.dataframe(corr)
                 
@@ -228,14 +228,11 @@ def main():
     inject_custom_css()
     ai_sidebar_assistant()
     
-    st.markdown(
-        """
-        <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-            <div style="font-size: 24px; font-weight: 800;">🔨 Feature Engineering</div>
-            <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Modify your dataset for better model performance. Changes are saved to the 'Clean' dataset.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    app_header(
+        config,
+        page_title="Feature Engineering",
+        subtitle="Modify your dataset for better model performance. Changes are saved to the 'Clean' dataset",
+        icon="🔨"
     )
     
     raw_df = get_df(st.session_state)

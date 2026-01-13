@@ -5,15 +5,28 @@ Simple, step-by-step guide for learning regression with visual explanations and 
 import streamlit as st
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression, Ridge, Lasso
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor
+
+# Optional advanced boosters (with fallback if not installed)
+try:
+    import xgboost as xgb
+    XGBOOST_AVAILABLE = True
+except Exception:
+    XGBOOST_AVAILABLE = False
+    
+try:
+    import lightgbm as lgb
+    LIGHTGBM_AVAILABLE = True
+except Exception:
+    LIGHTGBM_AVAILABLE = False
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.inspection import permutation_importance
 
-from src.core.ui import page_navigation, sidebar_dataset_status
+from src.core.config import load_config
+from src.core.ui import app_header, page_navigation, sidebar_dataset_status
 from src.core.standardized_ui import (
-    standard_page_header,
     standard_section_header,
     beginner_tip,
     before_after_comparison,
@@ -22,10 +35,13 @@ from src.core.standardized_ui import (
 
 st.set_page_config(page_title="Regression Learning", layout="wide", initial_sidebar_state="expanded")
 
-standard_page_header(
-    title="Regression Learning (Beginner)",
-    subtitle="Predict numbers and understand model performance.",
-    icon="🧑‍🎓",
+config = load_config()
+
+app_header(
+    config,
+    page_title="Regression Learning",
+    subtitle="Predict numbers and understand model performance",
+    icon="🧑‍🎓"
 )
 
 st.markdown("""
@@ -72,6 +88,28 @@ beginner_tip(
     "through your data points to make predictions. More data = better line = better predictions!"
 )
 
+st.markdown(
+    """
+    ### 🧭 Fast practice kit
+    - **Baseline first:** Fit a simple Linear Regression to set a reference error.
+    - **Scale matters:** Standardize numeric features before regularized models (Ridge/Lasso).
+    - **Leakage check:** Remove future or target-derived columns (totals that include the target period).
+    - **Outlier audit:** Plot histogram/boxplot of the target; winsorize or flag extreme values.
+    - **Error lens:** Track both MAE (average miss) and RMSE (penalizes large misses); compare on train vs. test.
+    """
+)
+
+with st.expander("Interpretation cheat sheet", expanded=False):
+    st.markdown(
+        """
+        - **Sign and size:** For linear models, check coefficient sign and relative magnitude after scaling.
+        - **Feature importance:** Use permutation importance to see what actually moves the error needle.
+        - **Prediction sanity:** Compare predictions on a few hand-crafted edge cases.
+        - **Residual scan:** Plot residuals vs. predictions to spot heteroscedasticity or non-linearity.
+        - **Drift watch:** If data is time-based, check whether error changes over time.
+        """
+    )
+
 sidebar_dataset_status(st.session_state.get("raw_df"), st.session_state.get("clean_df"))
 
 # Step 1: Data Upload or Sample
@@ -103,7 +141,7 @@ elif data_source == "Use sample dataset":
     st.success("Loaded sample regression dataset.")
 
 if df is not None:
-    st.dataframe(df.head(10), use_container_width=True)
+    st.dataframe(df.head(10), width="stretch")
     st.caption("Preview: First 10 rows of your data.")
     st.markdown("""
     **✅ Data loaded successfully!**
@@ -214,6 +252,13 @@ st.markdown("""
 - **Weaknesses**: May not perform well with highly correlated features
 - **Use when**: You want automatic feature elimination
 
+📈 **Elastic Net** (Balanced Regularization)
+- **How it works**: Mixes Ridge (L2) and Lasso (L1) penalties
+- **Best for**: Many correlated features where you still want sparsity
+- **Strengths**: Balances feature selection with stability
+- **Weaknesses**: Two hyperparameters to tune (alpha, l1_ratio)
+- **Use when**: Lasso is too aggressive and Ridge is too loose
+
 🌲 **Random Forest Regression** (Powerful & Flexible)
 - **How it works**: Averages predictions from many decision trees
 - **Best for**: Complex non-linear relationships
@@ -221,21 +266,93 @@ st.markdown("""
 - **Weaknesses**: Slower, less interpretable, can overfit with default settings
 - **Use when**: Linear models fail or relationships are complex
 
+🌄 **Gradient Boosting Regression** (Strong Tabular Default)
+- **How it works**: Sequential trees that fix prior errors (boosting)
+- **Best for**: Tabular data with non-linearities and interactions
+- **Strengths**: Strong accuracy, handles mix of feature types
+- **Weaknesses**: More hyperparameters, can overfit without tuning
+- **Use when**: You want stronger accuracy than Random Forest with careful tuning
+
+⚡ **HistGradientBoosting Regression** (Modern, Fast Boosting)
+- **How it works**: Histogram-based gradient boosting (like LightGBM style) in scikit-learn
+- **Best for**: Medium/large tabular datasets; handles missing values
+- **Strengths**: Fast, strong accuracy, supports monotonic constraints (advanced)
+- **Weaknesses**: Less interpretable; needs validation to avoid overfitting
+- **Use when**: You want a modern, high-performing tree booster without extra deps
+
+🚀 **XGBoost Regression** (Industry Standard Booster)
+- **How it works**: Optimized gradient boosting with advanced regularization and parallel trees
+- **Best for**: Kaggle competitions, production systems, structured/tabular data
+- **Strengths**: State-of-art accuracy, handles missing values, GPU support, built-in CV
+- **Weaknesses**: Many hyperparameters to tune; can overfit without careful tuning
+- **Use when**: You want top accuracy for structured data and can tune hyperparameters
+
+⚡ **LightGBM Regression** (Fast & Scalable Booster)
+- **How it works**: Leaf-wise gradient boosting (grows best leaf each iteration vs. level-wise)
+- **Best for**: Large datasets (>100K rows), fast training with high accuracy
+- **Strengths**: Faster than XGBoost, memory-efficient, handles categorical features natively
+- **Weaknesses**: Leaf-wise growth can overfit on small data; needs tuning
+- **Use when**: You have large datasets and want speed + accuracy; works great with categorical features
+
 **🎯 Quick Selection Guide:**
 
 | Your Situation | Recommended Model |
 |----------------|------------------|
 | Simple linear relationship | Linear Regression |
-| Many correlated features | Ridge |
+| Many correlated features | Ridge or Elastic Net |
 | Want automatic feature selection | Lasso |
+| Balanced sparsity + stability | Elastic Net |
 | Complex/non-linear patterns | Random Forest |
-| Need interpretability | Linear, Ridge, or Lasso |
+| Stronger accuracy on tabular | Gradient Boosting / HistGradientBoosting |
+| **Top accuracy (competition/production)** | **XGBoost or LightGBM** |
+| Large dataset (>100K rows) | LightGBM |
+| Need interpretability | Linear, Ridge, Lasso, or Elastic Net |
 | Have outliers | Random Forest |
+| Have missing values | XGBoost, LightGBM, HistGradientBoosting |
+| Categorical features | LightGBM (native support) |
 
-**💡 Pro tip:** Always start with Linear Regression as baseline, then try others if performance is poor.
+**💡 Pro tip:** Always start with Linear Regression as baseline, then try XGBoost/LightGBM for best accuracy on tabular data. Use regularized models for interpretability.
 """)
 
-model_name = st.selectbox("Model:", ["Linear Regression", "Ridge", "Lasso", "Random Forest Regression"])
+# Build model list dynamically based on availability
+model_options = [
+    "Linear Regression",
+    "Ridge",
+    "Lasso",
+    "Elastic Net",
+    "Random Forest Regression",
+    "Gradient Boosting Regression",
+    "HistGradientBoosting Regression",
+]
+
+if XGBOOST_AVAILABLE:
+    model_options.append("XGBoost Regression")
+    
+if LIGHTGBM_AVAILABLE:
+    model_options.append("LightGBM Regression")
+
+# Show installation notice if advanced models aren't available
+if not XGBOOST_AVAILABLE or not LIGHTGBM_AVAILABLE:
+    missing = []
+    if not XGBOOST_AVAILABLE:
+        missing.append("XGBoost")
+    if not LIGHTGBM_AVAILABLE:
+        missing.append("LightGBM")
+    
+    with st.expander(f"⚠️ Optional models not available: {', '.join(missing)}", expanded=False):
+        st.markdown(f"""
+        **{', '.join(missing)} could not be loaded.** These are optional high-performance models.
+        
+        **To enable them:**
+        """)
+        if not XGBOOST_AVAILABLE:
+            st.code("# For macOS users - install OpenMP first\nbrew install libomp\n\n# Then reinstall xgboost\npip install --upgrade --force-reinstall xgboost", language="bash")
+        if not LIGHTGBM_AVAILABLE:
+            st.code("pip install --upgrade lightgbm", language="bash")
+        st.info("The app works fine without these models. You can use other algorithms like Random Forest or HistGradientBoosting.")
+
+model_name = st.selectbox("Model:", model_options)
+
 if model_name == "Linear Regression":
     model = LinearRegression()
     st.info("✅ Simple and interpretable. Best for linear relationships.")
@@ -245,9 +362,32 @@ elif model_name == "Ridge":
 elif model_name == "Lasso":
     model = Lasso()
     st.info("✅ Automatic feature selection. Sets unimportant features to zero.")
+elif model_name == "Elastic Net":
+    model = ElasticNet()
+    st.info("✅ Blends Ridge + Lasso. Good when you want sparsity without instability.")
 elif model_name == "Random Forest Regression":
-    model = RandomForestRegressor()
+    model = RandomForestRegressor(random_state=42)
     st.info("✅ Powerful for complex patterns. Handles non-linearity naturally.")
+elif model_name == "Gradient Boosting Regression":
+    model = GradientBoostingRegressor(random_state=42)
+    st.info("✅ Strong tabular baseline with boosting. Good for non-linear interactions.")
+elif model_name == "HistGradientBoosting Regression":
+    model = HistGradientBoostingRegressor(random_state=42)
+    st.info("✅ Modern, fast booster (sklearn's LightGBM-style). Handles missing values.")
+elif model_name == "XGBoost Regression":
+    if XGBOOST_AVAILABLE:
+        model = xgb.XGBRegressor(random_state=42, n_estimators=100, learning_rate=0.1)
+        st.info("✅ 🏆 Industry-standard booster. Top accuracy for structured data with proper tuning.")
+    else:
+        st.error("XGBoost is not available. See installation instructions above.")
+        st.stop()
+elif model_name == "LightGBM Regression":
+    if LIGHTGBM_AVAILABLE:
+        model = lgb.LGBMRegressor(random_state=42, n_estimators=100, learning_rate=0.1, verbose=-1)
+        st.info("✅ 🚀 Fast and scalable. Excellent for large datasets and categorical features.")
+    else:
+        st.error("LightGBM is not available. See installation instructions above.")
+        st.stop()
 else:
     st.error("Unknown model selected.")
     st.stop()
@@ -410,7 +550,7 @@ if st.button("Train Model", type="primary"):
             height=350,
             showlegend=True
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         st.caption("✅ Good: Points near red line | ❌ Bad: Points scattered far from line")
     
     with col_vis2:
@@ -432,7 +572,7 @@ if st.button("Train Model", type="primary"):
             height=350,
             showlegend=False
         )
-        st.plotly_chart(fig_err, use_container_width=True)
+        st.plotly_chart(fig_err, width="stretch")
         st.caption("✅ Good: Bell curve centered at 0 | ❌ Bad: Skewed or multiple peaks")
 
     st.markdown("""
@@ -522,9 +662,9 @@ if st.button("Train Model", type="primary"):
             yaxis_title="Feature",
             height=max(300, len(importances) * 30)
         )
-        st.plotly_chart(fig_imp, use_container_width=True)
+        st.plotly_chart(fig_imp, width="stretch")
         
-        st.dataframe(importances, use_container_width=True)
+        st.dataframe(importances, width="stretch")
         
         # Interpretation help
         top_feature = importances.iloc[0]["Feature"]
@@ -563,7 +703,7 @@ if st.button("Train Model", type="primary"):
                 "Feature": X.columns,
                 "Mean |SHAP|": mean_abs,
             }).sort_values("Mean |SHAP|", ascending=False)
-            st.dataframe(shap_df.head(10), use_container_width=True)
+            st.dataframe(shap_df.head(10), width="stretch")
             st.caption("Mean absolute SHAP values indicate average feature impact on predictions. Requires 'shap' package.")
         except Exception as e:
             st.caption(f"SHAP explainability unavailable: {e}. Tip: Install with 'pip install shap'")

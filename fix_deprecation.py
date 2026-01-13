@@ -17,11 +17,11 @@ def fix_file(filepath):
         
         original_content = content
         
-        # Replace use_container_width=True with use_container_width=True
-        content = content.replace("use_container_width=True", "use_container_width=True")
+        # Replace width="stretch" with width="stretch"
+        content = content.replace("width="stretch"", "width="stretch"")
         
-        # Replace use_container_width=False with width='content'
-        content = content.replace("use_container_width=False", "width='content'")
+        # Replace width="content" with width='content'
+        content = content.replace("width="content"", "width='content'")
         
         # Only write if there were changes
         if content != original_content:

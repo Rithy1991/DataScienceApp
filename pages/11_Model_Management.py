@@ -15,7 +15,7 @@ from plotly.subplots import make_subplots
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import render_stat_card, inject_custom_css
 from src.storage.history import add_event, list_events
 from src.storage.model_registry import delete_model, list_models
@@ -32,14 +32,11 @@ config = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">📦 Model Management</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Browse, compare, download, or clean up your trained models and their history.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Model Management",
+    subtitle="Browse, compare, download, or clean up your trained models and their history",
+    icon="📦"
 )
 instruction_block(
     "How to use this page",
@@ -87,7 +84,7 @@ with tab1:
             ]
         )
         
-        st.dataframe(table[["ID", "Type", "Name", "Created"]], use_container_width=True, hide_index=True)
+        st.dataframe(table[["ID", "Type", "Name", "Created"]], width="stretch", hide_index=True)
         
         st.divider()
         
@@ -126,18 +123,18 @@ with tab1:
                         fi_df = pd.DataFrame(list(fi_data.items()), columns=["Feature", "Importance"])
                         fi_df = fi_df.sort_values("Importance", ascending=True)
                         fig = px.bar(fi_df, x="Importance", y="Feature", orientation='h', title=f"Feature Contribution ({selected_model.name})")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
         
         with action_col2:
             st.download_button(
                 "📥 Download Metadata",
                 data=json.dumps(selected_model.__dict__, indent=2, default=str),
                 file_name=f"model_{selected[:8]}.json",
-                use_container_width=True
+                width="stretch"
             )
         
         with action_col3:
-            if st.button("🗑️ Delete Model", use_container_width=True):
+            if st.button("🗑️ Delete Model", width="stretch"):
                 st.warning("⚠️ Are you sure? This cannot be undone.")
                 if st.button("Confirm Delete", type="primary", key=f"confirm_{selected[:8]}"):
                     ok = delete_model(config.registry_dir, selected)
@@ -181,7 +178,7 @@ with tab2:
         for col in ["Accuracy/R²", "F1/RMSE"]:
             if col in perf_df.columns:
                 perf_df[col] = pd.to_numeric(perf_df[col], errors="coerce")
-        st.dataframe(perf_df, use_container_width=True, hide_index=True)
+        st.dataframe(perf_df, width="stretch", hide_index=True)
         
         st.info("💡 Use these metrics to select the best model for predictions")
         
@@ -200,7 +197,7 @@ with tab2:
                 text_auto=True
             )
             fig_perf.update_layout(height=400)
-            st.plotly_chart(fig_perf, use_container_width=True)
+            st.plotly_chart(fig_perf, width="stretch")
         
         # Performance drift detection
         st.divider()
@@ -236,7 +233,7 @@ with tab2:
             yaxis_title="Score",
             height=400
         )
-        st.plotly_chart(fig_drift, use_container_width=True)
+        st.plotly_chart(fig_drift, width="stretch")
         
         # Drift alert
         recent_perf = timeline["Accuracy"].iloc[-5:].mean()
@@ -291,7 +288,7 @@ with tab3:
                 "✅ Ready"
             ]
         })
-        st.dataframe(comp_basic, use_container_width=True, hide_index=True)
+        st.dataframe(comp_basic, width="stretch", hide_index=True)
         
         st.divider()
         
@@ -333,7 +330,7 @@ with tab3:
                 })
             
             comp_metrics = pd.DataFrame(comparison_data)
-            st.dataframe(comp_metrics, use_container_width=True, hide_index=True)
+            st.dataframe(comp_metrics, width="stretch", hide_index=True)
             
             # Visual comparison
             st.divider()
@@ -365,7 +362,7 @@ with tab3:
                     title="Performance Radar Chart",
                     height=500
                 )
-                st.plotly_chart(fig_radar, use_container_width=True)
+                st.plotly_chart(fig_radar, width="stretch")
             
             # Bar comparison
             if comparison_data:
@@ -387,7 +384,7 @@ with tab3:
                         barmode='group',
                         height=400
                     )
-                    st.plotly_chart(fig_bar, use_container_width=True)
+                    st.plotly_chart(fig_bar, width="stretch")
         else:
             st.info("No performance metrics available for comparison")
         
@@ -408,7 +405,7 @@ with tab3:
                 st.info("⚖️ Models show similar performance - consider other factors like training time or interpretability")
         
         # Export comparison
-        if st.button("📥 Export Comparison Report", use_container_width=True):
+        if st.button("📥 Export Comparison Report", width="stretch"):
             report = {
                 "comparison_date": pd.Timestamp.now().isoformat(),
                 "model_1": {"id": model1_id, "name": model1.name, "metrics": metrics1},
@@ -421,7 +418,7 @@ with tab3:
                 data=json.dumps(report, indent=2),
                 file_name="model_comparison.json",
                 mime="application/json",
-                use_container_width=True
+                width="stretch"
             )
 
 with tab4:
@@ -447,14 +444,14 @@ with tab4:
             for e in filtered_events
         ])
         
-        st.dataframe(dfh, use_container_width=True, hide_index=True)
+        st.dataframe(dfh, width="stretch", hide_index=True)
         
         # Export option
         st.download_button(
             "📥 Export Audit Log (CSV)",
             data=dfh.to_csv(index=False),
             file_name="audit_log.csv",
-            use_container_width=True
+            width="stretch"
         )
 
 # Page navigation

@@ -72,14 +72,11 @@ def main() -> None:
     # Show welcome guide for first-time users
     show_welcome_guide()
 
-    st.markdown(
-        """
-        <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-            <div style="font-size: 24px; font-weight: 800;">🧹 Data Cleaning & Preparation</div>
-            <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Upload a dataset or pick a sample to start exploring and cleaning.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    app_header(
+        config,
+        page_title="Data Cleaning & Preparation",
+        subtitle="Upload a dataset or pick a sample to start exploring and cleaning",
+        icon="🧹"
     )
 
     instruction_block(
@@ -110,7 +107,7 @@ def main() -> None:
         uploaded = st.file_uploader(
             "Choose a file", type=["csv", "parquet", "xlsx", "xls"], accept_multiple_files=False, key="upload_file"
         )
-        if st.button("📤 Load uploaded file", use_container_width=True, disabled=(uploaded is None)):
+        if st.button("📤 Load uploaded file", width="stretch", disabled=(uploaded is None)):
             res = load_from_upload(uploaded)
             if res is None:
                 st.error("❌ Unsupported file type.")
@@ -125,7 +122,7 @@ def main() -> None:
         st.markdown("**Load from REST API** (GET endpoint returning JSON or CSV)")
         api_url = st.text_input("API URL", value="", placeholder="https://api.example.com/data")
         api_headers = st.text_area("Optional headers (JSON)", value="{}", height=80)
-        if st.button("🌐 Fetch API data", use_container_width=True, disabled=(api_url.strip() == "")):
+        if st.button("🌐 Fetch API data", width="stretch", disabled=(api_url.strip() == "")):
             try:
                 headers = json.loads(api_headers or "{}")
                 res = load_from_api(api_url.strip(), headers=headers)
@@ -142,7 +139,7 @@ def main() -> None:
         samples = get_sample_datasets()
         sample_name = st.selectbox("Choose a sample dataset", list(samples.keys()), key="sample_select")
         st.caption(describe_sample_dataset(sample_name))
-        if st.button("📊 Load sample data", use_container_width=True):
+        if st.button("📊 Load sample data", width="stretch"):
             sample_df = samples[sample_name]
             set_df(st.session_state, sample_df, source=f"Sample: {sample_name}")
             add_event(config.history_db_path, "data_load", f"Loaded sample dataset: {sample_name}", json.dumps({"rows": len(sample_df), "cols": len(sample_df.columns)}))
@@ -178,7 +175,7 @@ def main() -> None:
 
     st.subheader("👁️ Preview")
     max_rows = int(config.max_rows_preview)
-    st.dataframe(raw_df.head(max_rows), use_container_width=True)
+    st.dataframe(raw_df.head(max_rows), width="stretch")
 
     st.divider()
 
@@ -186,7 +183,7 @@ def main() -> None:
     with col1:
         st.info("👋 **Next Step:** Your data is loaded! Head over to the **Data Cleaning** page to handle missing values, duplicates, and outliers.")
     with col2:
-        if st.button("Go to Data Cleaning ➡️", type="primary", use_container_width=True):
+        if st.button("Go to Data Cleaning ➡️", type="primary", width="stretch"):
             st.switch_page("pages/3_Data_Cleaning.py")
 
 if _in_streamlit_runtime():

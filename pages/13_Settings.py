@@ -9,7 +9,7 @@ st.set_page_config(page_title="DataScope Pro - Settings", layout="wide", initial
 
 from src.core.config import load_config, save_config
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import inject_custom_css
 
 
@@ -18,14 +18,11 @@ config_obj = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">⚙️ Settings</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Tweak defaults, save config.yaml, and keep secrets out of the codebase.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config_obj,
+    page_title="Settings",
+    subtitle="Tweak defaults, save config.yaml, and keep secrets out of the codebase",
+    icon="⚙️"
 )
 instruction_block(
     "How to use this page",
@@ -143,7 +140,7 @@ with tab1:
     st.divider()
     
     # Save button
-    if st.button("💾 Save All Settings", type="primary", use_container_width=True):
+    if st.button("💾 Save All Settings", type="primary", width="stretch"):
         new_raw = {
             **raw,
             "app": {"title": app_title, "refresh_rate_seconds": int(refresh), "default_task": raw.get("app", {}).get("default_task", "auto")},

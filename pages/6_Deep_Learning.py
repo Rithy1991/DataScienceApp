@@ -16,7 +16,7 @@ from plotly.subplots import make_subplots
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -48,14 +48,11 @@ config = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style=\"background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;\">
-        <div style=\"font-size: 24px; font-weight: 800;\">🧠 Deep Learning Forecasting</div>
-        <div style=\"font-size: 15px; opacity: 0.95; margin-top: 6px;\">Train Transformer or TFT models for time-series forecasts with reusable model IDs.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Deep Learning Forecasting",
+    subtitle="Train Transformer or TFT models for time-series forecasts with reusable model IDs",
+    icon="🧠"
 )
 instruction_block(
     "How to use this page",
@@ -225,7 +222,7 @@ with tab1:
     
     col1, col2 = st.columns([1, 2])
     with col1:
-        if st.button("🚀 Train Models", type="primary", use_container_width=True):
+        if st.button("🚀 Train Models", type="primary", width="stretch"):
             # Run training inline with live status so users see progress immediately
             try:
                 if not model_types:
@@ -325,7 +322,7 @@ with tab2:
 
             st.subheader("Backtesting Comparison")
             comparison_df = pd.DataFrame(comparison_rows)
-            st.dataframe(comparison_df, use_container_width=True)
+            st.dataframe(comparison_df, width="stretch")
 
             # Add results explanation
             st.divider()
@@ -396,7 +393,7 @@ with tab2:
                             title=f"Model Comparison ({metric_key.upper()})",
                         )
                         fig_comp.update_layout(showlegend=False)
-                        st.plotly_chart(fig_comp, use_container_width=True)
+                        st.plotly_chart(fig_comp, width="stretch")
                     with col2:
                         is_lower_better = metric_key.lower() in {"rmse", "mae", "mape"}
                         best = (min if is_lower_better else max)(comparison_rows, key=lambda r: r.get(metric_key, 0.0))
@@ -440,7 +437,7 @@ with tab2:
                                     height=350,
                                     title="All Metrics at a Glance"
                                 )
-                                st.plotly_chart(fig_radar, use_container_width=True)
+                                st.plotly_chart(fig_radar, width="stretch")
                             else:
                                 st.info("Multiple metrics needed for radar chart")
                         
@@ -459,7 +456,7 @@ with tab2:
                                     subset=[metric_key],
                                     cmap='RdYlGn_r' if is_lower_better else 'RdYlGn'
                                 ),
-                                use_container_width=True,
+                                width="stretch",
                                 height=350
                             )
                     
@@ -489,7 +486,7 @@ with tab2:
                             text_auto='.2f'
                         )
                         fig_grouped.update_layout(height=400)
-                        st.plotly_chart(fig_grouped, use_container_width=True)
+                        st.plotly_chart(fig_grouped, width="stretch")
                         
                         st.caption("💡 If RMSE bars are much taller than MAE, the model struggles with occasional large errors (outliers)")
 
@@ -679,7 +676,7 @@ with tab2:
             
             st.subheader("Backtesting Comparison")
             comparison_df = pd.DataFrame(comparison_rows)
-            st.dataframe(comparison_df, use_container_width=True)
+            st.dataframe(comparison_df, width="stretch")
 
             if comparison_rows:
                 sample_keys = [k for k in comparison_rows[0].keys() if k not in {"model_id", "model"}]
@@ -698,7 +695,7 @@ with tab2:
                             title=f"Model Comparison ({metric_key})",
                         )
                         fig_comp.update_layout(showlegend=False)
-                        st.plotly_chart(fig_comp, use_container_width=True)
+                        st.plotly_chart(fig_comp, width="stretch")
                     
                     with col2:
                         is_lower_better = metric_key.lower() in {"rmse", "mae", "mape"}
@@ -806,7 +803,7 @@ with tab2:
                     hovermode="x unified",
                     height=500,
                 )
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         
         except Exception as e:
             st.error(f"❌ Training failed: {str(e)}")

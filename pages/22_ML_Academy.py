@@ -8,7 +8,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from src.core.config import load_config
-from src.core.ui import instruction_block, sidebar_dataset_status, page_navigation
+from src.core.ui import app_header, instruction_block, sidebar_dataset_status, page_navigation
 from src.core.standardized_ui import standard_section_header, beginner_tip, concept_explainer
 from src.core.styles import inject_custom_css
 from src.core.ai_helper import ai_sidebar_assistant
@@ -21,17 +21,11 @@ inject_custom_css()
 ai_sidebar_assistant()
 
 # ==================== Header ====================
-st.markdown(
-    """
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #f8fafc; 
-                padding: 20px 24px; border-radius: 12px; margin-bottom: 20px;">
-        <div style="font-size: 28px; font-weight: 900; margin-bottom: 8px;">🎓 ML Academy - Comprehensive Curriculum</div>
-        <div style="font-size: 16px; opacity: 0.95;">
-            Master Supervised & Unsupervised Learning | 10 Complete Modules | Code Examples Included
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="ML Academy 2.0",
+    subtitle="Master Supervised & Unsupervised Learning | 10 Complete Modules | Code Examples Included",
+    icon="🎓"
 )
 
 instruction_block(

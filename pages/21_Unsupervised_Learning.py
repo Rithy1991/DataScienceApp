@@ -20,7 +20,7 @@ st.set_page_config(
 )
 
 from src.core.config import load_config
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -45,17 +45,11 @@ warnings.filterwarnings("ignore")
 
 
 # ==================== Header ====================
-st.markdown(
-    """
-    <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #f8fafc; 
-                padding: 20px 24px; border-radius: 12px; margin-bottom: 20px;">
-        <div style="font-size: 28px; font-weight: 900; margin-bottom: 8px;">🔍 Unsupervised Learning Explorer</div>
-        <div style="font-size: 16px; opacity: 0.95;">
-            Discover Hidden Patterns | Clustering • Dimensionality Reduction • Anomaly Detection
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Unsupervised Learning Explorer",
+    subtitle="Discover Hidden Patterns | Clustering • Dimensionality Reduction • Anomaly Detection",
+    icon="🔍"
 )
 
 # ==================== Instructions ====================
@@ -97,7 +91,7 @@ with task_col1:
     
     **Methods:** K-Means, DBSCAN, Hierarchical
     """)
-    if st.button("Use Clustering", key="btn_cluster", use_container_width=True):
+    if st.button("Use Clustering", key="btn_cluster", width="stretch"):
         st.session_state.ul_task = "clustering"
         st.rerun()
 
@@ -111,7 +105,7 @@ with task_col2:
     
     **Methods:** PCA, t-SNE, UMAP
     """)
-    if st.button("Use Dimensionality Reduction", key="btn_dimred", use_container_width=True):
+    if st.button("Use Dimensionality Reduction", key="btn_dimred", width="stretch"):
         st.session_state.ul_task = "dimensionality_reduction"
         st.rerun()
 
@@ -125,7 +119,7 @@ with task_col3:
     
     **Methods:** Isolation Forest, Local Outlier Factor
     """)
-    if st.button("Use Anomaly Detection", key="btn_anomaly", use_container_width=True):
+    if st.button("Use Anomaly Detection", key="btn_anomaly", width="stretch"):
         st.session_state.ul_task = "anomaly_detection"
         st.rerun()
 
@@ -152,7 +146,7 @@ with tab_upload:
                 df = pd.read_csv(uploaded_file)
             st.session_state.raw_df = df
             st.success(f"✅ Loaded {df.shape[0]:,} rows × {df.shape[1]:,} columns")
-            st.dataframe(df.head(10), use_container_width=True)
+            st.dataframe(df.head(10), width="stretch")
         except Exception as e:
             st.error(f"Error loading file: {e}")
 
@@ -160,7 +154,7 @@ with tab_sample:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("Load Iris (Clustering)", use_container_width=True):
+        if st.button("Load Iris (Clustering)", width="stretch"):
             from sklearn.datasets import load_iris
             iris = load_iris()
             df = pd.DataFrame(iris.data, columns=iris.feature_names)
@@ -168,7 +162,7 @@ with tab_sample:
             st.rerun()
     
     with col2:
-        if st.button("Load Digits (Dim Reduction)", use_container_width=True):
+        if st.button("Load Digits (Dim Reduction)", width="stretch"):
             from sklearn.datasets import load_digits
             digits = load_digits()
             df = pd.DataFrame(digits.data, columns=[f"pixel_{i}" for i in range(64)])
@@ -177,7 +171,7 @@ with tab_sample:
             st.rerun()
     
     with col3:
-        if st.button("Load Blobs (Clustering)", use_container_width=True):
+        if st.button("Load Blobs (Clustering)", width="stretch"):
             from sklearn.datasets import make_blobs
             X, _ = make_blobs(n_samples=300, centers=4, n_features=2, random_state=42)
             df = pd.DataFrame(X, columns=['Feature_1', 'Feature_2'])
@@ -232,7 +226,7 @@ if task_type == "clustering":
     col_k1, col_k2 = st.columns(2)
     
     with col_k1:
-        if st.button("🔍 Analyze Optimal Clusters", use_container_width=True, key="btn_optimal_k"):
+        if st.button("🔍 Analyze Optimal Clusters", width="stretch", key="btn_optimal_k"):
             with st.spinner("Analyzing cluster numbers..."):
                 k_analysis = find_optimal_clusters(numeric_df, k_range=(2, 10))
                 st.session_state.k_analysis = k_analysis
@@ -270,7 +264,7 @@ if task_type == "clustering":
             height=400
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
     
     # Step 2: Choose clustering algorithm
     st.markdown("### Step 2: Choose Clustering Algorithm")
@@ -292,7 +286,7 @@ if task_type == "clustering":
             n_clusters_param = st.slider("Number of clusters:", 2, 10, 3)
     
     with col_algo3:
-        if st.button("🚀 Run Clustering", use_container_width=True, type="primary"):
+        if st.button("🚀 Run Clustering", width="stretch", type="primary"):
             with st.spinner("Clustering data..."):
                 clusterer = ClusteringModel(
                     algorithm=algorithm,
@@ -350,7 +344,7 @@ if task_type == "clustering":
                     color_discrete_sequence=px.colors.qualitative.Set2
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
             else:
                 st.warning(f"⚠️ Data mismatch: Current data has {len(numeric_df)} rows but clustering labels have {len(clusterer.labels_)} rows. Please re-run clustering.")
         
@@ -358,7 +352,7 @@ if task_type == "clustering":
         if len(clusterer.labels_) == len(numeric_df):
             with st.expander("📊 Cluster Profiles", expanded=True):
                 profiles = profile_clusters(numeric_df, clusterer.labels_)
-                st.dataframe(profiles, use_container_width=True)
+                st.dataframe(profiles, width="stretch")
         else:
             st.info("ℹ️ Cluster profiles unavailable due to data mismatch. Please re-run clustering.")
         
@@ -374,7 +368,7 @@ if task_type == "clustering":
             color_continuous_scale='Viridis'
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Export results
         with st.expander("💾 Export Results"):
@@ -387,7 +381,7 @@ if task_type == "clustering":
                 data=csv,
                 file_name="clustered_data.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
 
 # ==================== DIMENSIONALITY REDUCTION WORKFLOW ====================
@@ -412,9 +406,10 @@ elif task_type == "dimensionality_reduction":
         )
     
     with col_dr2:
-        n_components = st.slider("Number of output dimensions:", 2, min(10, numeric_df.shape[1]), 2)
+        max_components = max(3, min(10, numeric_df.shape[1]))
+        n_components = st.slider("Number of output dimensions:", 2, max_components, 2)
     
-    if st.button("🚀 Reduce Dimensions", use_container_width=True, type="primary"):
+    if st.button("🚀 Reduce Dimensions", width="stretch", type="primary"):
         with st.spinner("Reducing dimensions..."):
             reducer = DimensionalityReducer(
                 algorithm=dr_algorithm,
@@ -463,7 +458,7 @@ elif task_type == "dimensionality_reduction":
                     height=400
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width="stretch")
         
         # Visualization
         if n_components >= 2:
@@ -496,7 +491,7 @@ elif task_type == "dimensionality_reduction":
                     labels={'x': f'{dr_algorithm.upper()} 1', 'y': f'{dr_algorithm.upper()} 2'}
                 )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         
         # Export
         with st.expander("💾 Export Reduced Data"):
@@ -511,7 +506,7 @@ elif task_type == "dimensionality_reduction":
                 data=csv,
                 file_name=f"dimensionality_reduced_{dr_algorithm}.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
 
 # ==================== ANOMALY DETECTION WORKFLOW ====================
@@ -542,7 +537,7 @@ elif task_type == "anomaly_detection":
             help="Expected percentage of anomalies in data"
         )
     
-    if st.button("🚀 Detect Anomalies", use_container_width=True, type="primary"):
+    if st.button("🚀 Detect Anomalies", width="stretch", type="primary"):
         with st.spinner("Detecting anomalies..."):
             detector = AnomalyDetector(method=ad_method, contamination=contamination / 100)
             detector.fit(numeric_df)
@@ -591,7 +586,7 @@ elif task_type == "anomaly_detection":
                 color_discrete_map={'Normal': 'blue', 'Anomaly': 'red'}
             )
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
         
         # Anomaly scores distribution
         fig = go.Figure()
@@ -610,7 +605,7 @@ elif task_type == "anomaly_detection":
             height=400
         )
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Anomalies detail
         with st.expander("🔍 Detected Anomalies", expanded=False):
@@ -621,7 +616,7 @@ elif task_type == "anomaly_detection":
                 anomalies_df['anomaly_score'] = scores[anomaly_indices]
                 anomalies_df = anomalies_df.sort_values('anomaly_score')
                 
-                st.dataframe(anomalies_df, use_container_width=True)
+                st.dataframe(anomalies_df, width="stretch")
             else:
                 st.info("No anomalies detected with current settings")
         
@@ -637,7 +632,7 @@ elif task_type == "anomaly_detection":
                 data=csv,
                 file_name="anomaly_detection_results.csv",
                 mime="text/csv",
-                use_container_width=True
+                width="stretch"
             )
 
 # ==================== Footer ====================

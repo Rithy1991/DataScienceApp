@@ -12,7 +12,7 @@ import numpy as np
 
 from src.core.config import load_config
 from src.core.state import get_clean_df, get_df, set_df, set_clean_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.styles import render_stat_card, inject_custom_css
 from src.core.premium_styles import inject_premium_css, get_plotly_theme
 from src.core.modern_components import enhanced_chart
@@ -34,14 +34,11 @@ inject_custom_css()
 # Add AI assistant
 ai_sidebar_assistant()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">🎨 Visualization Studio</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Build interactive charts that make patterns easy to see and share.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Visualization Studio",
+    subtitle="Build interactive charts that make patterns easy to see and share",
+    icon="🎨"
 )
 
 instruction_block(
@@ -62,7 +59,7 @@ st.info(
 
 cta1, cta2 = st.columns([1, 3])
 with cta1:
-    if st.button("📓 Visualization Journal", type="primary", use_container_width=True):
+    if st.button("📓 Visualization Journal", type="primary", width="stretch"):
         st.switch_page("pages/8_Viz_Journal.py")
 with cta2:
     st.caption("Learn visualization from beginner → advanced with interactive practice.")
@@ -76,7 +73,7 @@ df = clean_df if clean_df is not None else raw_df
 
 if df is None:
     st.warning("No data loaded. Quickly load a sample to try the charts.")
-    if st.button("Load sample dataset (Retail Sales)", type="primary", use_container_width=True):
+    if st.button("Load sample dataset (Retail Sales)", type="primary", width="stretch"):
         sample = pd.DataFrame(
             {
                 "date": pd.date_range("2024-01-01", periods=120, freq="D"),
@@ -213,7 +210,7 @@ with tab1:
                 fig.update_xaxes(showgrid=False)
                 fig.update_yaxes(showgrid=False)
             
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
             
             # Add explanation of what the chart shows
             st.divider()
@@ -238,7 +235,7 @@ with tab1:
             st.caption("Export Options")
             export_col1, export_col2, export_col3 = st.columns(3)
             with export_col1:
-                if st.button("📥 Save as PNG", use_container_width=True):
+                if st.button("📥 Save as PNG", width="stretch"):
                     st.info("💡 Click the camera icon 📷 in the chart toolbar above to save as PNG")
             with export_col2:
                 html_str = fig.to_html(include_plotlyjs='cdn')
@@ -247,7 +244,7 @@ with tab1:
                     data=html_str,
                     file_name=f"{chart.lower()}_chart.html",
                     mime="text/html",
-                    use_container_width=True
+                    width="stretch"
                 )
             with export_col3:
                 json_str = fig.to_json()
@@ -256,7 +253,7 @@ with tab1:
                     data=json_str,
                     file_name=f"{chart.lower()}_data.json",
                     mime="application/json",
-                    use_container_width=True
+                    width="stretch"
                 )
     except Exception as e:
         st.error(f"Chart creation failed: {str(e)}")
@@ -283,7 +280,7 @@ with tab2:
                         title=f"📊 Distribution: {col}",
                         color_discrete_sequence=["#0ea5e9"]
                     )
-                    st.plotly_chart(fign, use_container_width=True)
+                    st.plotly_chart(fign, width="stretch")
                     st.caption(f"📖 Shows how **{col}** values are spread out. Look for peaks (common values), skew (asymmetry), or gaps in the data.")
         else:
             st.info("No numeric columns available")
@@ -298,7 +295,7 @@ with tab2:
                 height=600,
                 title="🔗 Pairwise Relationships"
             )
-            st.plotly_chart(figsm, use_container_width=True)
+            st.plotly_chart(figsm, width="stretch")
             st.caption("📖 Each plot shows the relationship between two numeric columns. Diagonal shows individual distributions. Look for linear or curved patterns.")
         else:
             st.info("Need at least 2 numeric columns")
@@ -315,7 +312,7 @@ with tab2:
                 zmin=-1, zmax=1,
                 title="🔥 Correlation Matrix"
             )
-            st.plotly_chart(figc, use_container_width=True)
+            st.plotly_chart(figc, width="stretch")
             st.caption("📖 Red = positive correlation (both increase together). Blue = negative correlation (one increases, other decreases). Dark/faint = no correlation.")
         else:
             st.info("Need at least 2 numeric columns")
@@ -333,7 +330,7 @@ with tab2:
                 title=f"📦 {num_col} Distribution by {cat_col}"
             )
             figb.update_layout(xaxis_tickangle=-45, height=500)
-            st.plotly_chart(figb, use_container_width=True)
+            st.plotly_chart(figb, width="stretch")
             st.caption(f"📖 Compares **{num_col}** across **{cat_col}** groups. The box shows the middle 50%; dots are outliers. Helps spot group differences.")
         else:
             st.info("Need at least 1 category and 1 numeric column")
@@ -379,7 +376,7 @@ with tab3:
                     mode='lines+markers'
                 ))
             fig_trend.update_layout(title="Trend Overview", height=400)
-            st.plotly_chart(fig_trend, use_container_width=True)
+            st.plotly_chart(fig_trend, width="stretch")
         else:
             st.info("Need at least 3 numeric columns for this template")
     
@@ -398,7 +395,7 @@ with tab3:
                 color=sales_col,
                 color_continuous_scale="Greens"
             )
-            st.plotly_chart(fig_sales, use_container_width=True)
+            st.plotly_chart(fig_sales, width="stretch")
             
             # Pie chart
             fig_pie = px.pie(
@@ -407,7 +404,7 @@ with tab3:
                 values=sales_col,
                 title=f"{sales_col} Distribution"
             )
-            st.plotly_chart(fig_pie, use_container_width=True)
+            st.plotly_chart(fig_pie, width="stretch")
         else:
             st.info("Need both numeric and categorical columns")
     
@@ -429,7 +426,7 @@ with tab3:
                 line_color="red",
                 annotation_text="Mean"
             )
-            st.plotly_chart(fig_ts, use_container_width=True)
+            st.plotly_chart(fig_ts, width="stretch")
             
             # Summary stats
             col1, col2, col3, col4 = st.columns(4)
@@ -459,7 +456,7 @@ with tab3:
                 marginal_y="histogram",
                 opacity=0.6
             )
-            st.plotly_chart(fig_seg, use_container_width=True)
+            st.plotly_chart(fig_seg, width="stretch")
         else:
             st.info("Need at least 2 numeric columns")
     
@@ -484,7 +481,7 @@ with tab3:
                     })
                 
                 scorecard_df = pd.DataFrame(scorecard_data)
-                st.dataframe(scorecard_df, use_container_width=True, hide_index=True)
+                st.dataframe(scorecard_df, width="stretch", hide_index=True)
                 
                 # Radar chart
                 fig_radar = go.Figure()
@@ -498,7 +495,7 @@ with tab3:
                     polar=dict(radialaxis=dict(visible=True)),
                     title="Performance Radar"
                 )
-                st.plotly_chart(fig_radar, use_container_width=True)
+                st.plotly_chart(fig_radar, width="stretch")
         else:
             st.info("Need numeric columns for scorecard")
 
@@ -526,7 +523,7 @@ with tab4:
                 fig1 = px.histogram(df, x=x1, title=f"Distribution: {x1}")
             
             fig1.update_layout(height=400)
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(fig1, width="stretch")
         except Exception as e:
             st.error(f"Error: {str(e)}")
     
@@ -548,7 +545,7 @@ with tab4:
                 fig2 = px.box(df, x=x2, y=y2, title=f"Box: {x2} vs {y2}")
             
             fig2.update_layout(height=400)
-            st.plotly_chart(fig2, use_container_width=True)
+            st.plotly_chart(fig2, width="stretch")
         except Exception as e:
             st.error(f"Error: {str(e)}")
     

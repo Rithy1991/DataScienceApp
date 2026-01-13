@@ -20,7 +20,7 @@ from sklearn.svm import LinearSVC
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     concept_explainer,
@@ -43,14 +43,11 @@ config = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">🎯 Prediction & Inference</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Run trained models on new data in batches or one row at a time.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Prediction & Inference",
+    subtitle="Run trained models on new data in batches or one row at a time",
+    icon="🎯"
 )
 instruction_block(
     "How to use this page",
@@ -86,27 +83,28 @@ df_session = clean_df if clean_df is not None else raw_df
 # Create tabs for different inference modes
 tab1, tab2, tab3, tab4 = st.tabs(["🤖 Model Selection", "📤 Batch Prediction", "📝 Real-time Scoring", "🔍 Prediction Insights"])
 
+# ---------------------------------------------------------------------------
+# Tab 1: Model Selection & Overview
+# ---------------------------------------------------------------------------
 with tab1:
-    st.subheader("Available Models")
-    models = list_models(config.registry_dir)
+    st.subheader("Select a trained model")
+    with st.spinner("Loading models..."):
+        models = list_models(config.registry_dir)
     if not models:
-        st.error("❌ No saved models available")
-        st.info("👉 Train a model first on the Tabular ML or Deep Learning pages")
+        st.warning("No models found. Please train a model first.")
         st.stop()
-    
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        options = {f"{m.model_id} | {m.kind.upper():10s} | {m.name}": m.model_id for m in models}
-        choice = st.selectbox("Select a trained model", options=list(options.keys()))
-        model_id = options[choice]
-    
+
+    options = {f"{m.model_id} | {m.kind.upper():10s} | {m.name}": m.model_id for m in models}
+    choice = st.selectbox("Select a trained model", options=list(options.keys()))
+    model_id = options[choice]
+
     rec = get_model(config.registry_dir, model_id)
     if not rec:
         st.error("Model not found")
         st.stop()
-    
+
     st.divider()
-    
+
     # Model details
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -120,9 +118,35 @@ with tab1:
     with c4:
         created = rec.created_utc[:10] if rec.created_utc else "Unknown"
         st.markdown(render_stat_card("Created", created, icon="📅"), unsafe_allow_html=True)
-    
+
+    # Show key training metrics to help learners understand model quality
+    metrics = (rec.meta or {}).get("metrics", {})
+    if metrics:
+        st.subheader("Training Metrics")
+        metric_cols = st.columns(4)
+
+        def _maybe_card(col, label, key_name, icon):
+            if key_name in metrics:
+                val = metrics[key_name]
+                if isinstance(val, float):
+                    # Format floats nicely
+                    val_str = f"{val:.4f}" if abs(val) < 100 else f"{val:,.2f}"
+                else:
+                    val_str = str(val)
+                col.markdown(render_stat_card(label, val_str, icon=icon), unsafe_allow_html=True)
+
+        _maybe_card(metric_cols[0], "Accuracy", "accuracy", "✅")
+        _maybe_card(metric_cols[1], "F1", "f1", "🎯")
+        _maybe_card(metric_cols[2], "ROC AUC", "roc_auc", "📈")
+        _maybe_card(metric_cols[3], "Precision", "precision", "🎯")
+
+        metric_cols2 = st.columns(4)
+        _maybe_card(metric_cols2[0], "Recall", "recall", "🔍")
+        _maybe_card(metric_cols2[1], "MAE", "mae", "📏")
+        _maybe_card(metric_cols2[2], "RMSE", "rmse", "📉")
+        _maybe_card(metric_cols2[3], "R²", "r2", "🧮")
+
     st.divider()
-    
     with st.expander("📚 Model Details & Metadata"):
         st.json(rec.meta if rec.meta else {"info": "No metadata available"})
 
@@ -150,7 +174,7 @@ with tab2:
             else:
                 st.success(f"✅ Loaded {res.df.shape[0]} rows × {res.df.shape[1]} columns")
                 
-                if st.button("🚀 Run Batch Prediction", type="primary", use_container_width=True):
+                if st.button("🚀 Run Batch Prediction", type="primary", width="stretch"):
                     with st.spinner("Making predictions..."):
                         try:
                             t0 = time.time()
@@ -158,19 +182,48 @@ with tab2:
                             if rec.kind == "tabular":
                                 model = load(rec.artifact_path)
                                 
-                                # Handle missing required columns
+                                # Handle missing required columns with flexible mapping
                                 meta = rec.meta or {}
                                 trained_features = meta.get("features", [])
-                                upload_features = list(res.df.columns)
+                                upload_df = res.df.copy()
+                                upload_features = list(upload_df.columns)
                                 
                                 if trained_features:
                                     missing_cols = set(trained_features) - set(upload_features)
+                                    
                                     if missing_cols:
-                                        st.error(f"❌ Missing columns in uploaded data: {missing_cols}")
-                                        st.info(f"Expected columns: {trained_features}")
-                                        st.stop()
+                                        st.warning(f"⚠️ Missing columns detected: {missing_cols}")
+                                        st.markdown("**Map your columns to training features:**")
+                                        
+                                        col_mapping = {}
+                                        cols_matched = st.columns(min(3, len(missing_cols)))
+                                        
+                                        for idx, trained_col in enumerate(sorted(missing_cols)):
+                                            col_idx = idx % len(cols_matched)
+                                            with cols_matched[col_idx]:
+                                                selected = st.selectbox(
+                                                    f"Map to '{trained_col}'",
+                                                    ["-- Skip --"] + upload_features,
+                                                    key=f"col_map_{trained_col}"
+                                                )
+                                                if selected != "-- Skip --":
+                                                    col_mapping[selected] = trained_col
+                                        
+                                        # Apply mapping: create new columns with mapped names
+                                        for src, dst in col_mapping.items():
+                                            if src in upload_df.columns:
+                                                upload_df[dst] = upload_df[src]
+                                        
+                                        # Re-check after mapping
+                                        missing_cols = set(trained_features) - set(upload_df.columns)
+                                        if missing_cols:
+                                            st.error(f"❌ Still missing columns after mapping: {missing_cols}. Cannot proceed.")
+                                            st.stop()
+                                    
+                                    # Reorder to match training order
+                                    upload_df = upload_df[trained_features]
                                 
-                                preds, proba = predict_tabular(model, res.df)
+                                preds, proba = predict_tabular(model, upload_df)
                                 
                                 # Create output
                                 out = res.df.copy()
@@ -190,27 +243,27 @@ with tab2:
                                 st.divider()
                                 
                                 st.subheader("Prediction Results")
-                                st.dataframe(out.head(100), use_container_width=True)
+                                st.dataframe(out.head(100), width="stretch")
                                 
                                 # Download
                                 st.download_button(
                                     "📥 Download predictions (CSV)",
                                     data=out.to_csv(index=False),
                                     file_name="predictions.csv",
-                                    use_container_width=True
+                                    width="stretch"
                                 )
                                 
                                 # Probabilities (if available)
                                 if proba is not None:
                                     st.subheader("Prediction Probabilities")
                                     proba_df = pd.DataFrame(proba)
-                                    st.dataframe(proba_df.head(100), use_container_width=True)
+                                    st.dataframe(proba_df.head(100), width="stretch")
                                     
                                     st.download_button(
                                         "📥 Download probabilities (CSV)",
                                         data=proba_df.to_csv(index=False),
                                         file_name="probabilities.csv",
-                                        use_container_width=True
+                                        width="stretch"
                                     )
                             
                             else:  # Forecasting model
@@ -365,7 +418,7 @@ with tab2:
                         df_new = pd.read_csv(upload_text)
                         text_cols_new = [c for c in df_new.columns if df_new[c].dtype == object]
                         sel_text_new = st.selectbox("Text column in uploaded CSV", options=text_cols_new, key="nlp_text_new")
-                        if st.button("🚀 Run NLP Batch Prediction", type="primary", use_container_width=True, key="nlp_run_batch"):
+                        if st.button("🚀 Run NLP Batch Prediction", type="primary", width="stretch", key="nlp_run_batch"):
                             with st.spinner("Scoring text..."):
                                 vec = st.session_state["nlp_vectorizer"]
                                 mdl = st.session_state["nlp_model"]
@@ -374,14 +427,14 @@ with tab2:
                                 out = df_new.copy()
                                 out["prediction"] = preds
                                 st.success(f"✅ Scored {len(out)} rows")
-                                st.dataframe(out.head(100), use_container_width=True)
-                                st.download_button("📥 Download NLP predictions (CSV)", data=out.to_csv(index=False), file_name="nlp_predictions.csv", use_container_width=True)
+                                st.dataframe(out.head(100), width="stretch")
+                                st.download_button("📥 Download NLP predictions (CSV)", data=out.to_csv(index=False), file_name="nlp_predictions.csv", width="stretch")
                                 if hasattr(mdl, "predict_proba"):
                                     proba = mdl.predict_proba(X_new)
                                     proba_df = pd.DataFrame(proba, columns=st.session_state.get("nlp_classes", []))
                                     st.subheader("Prediction Probabilities")
-                                    st.dataframe(proba_df.head(100), use_container_width=True)
-                                    st.download_button("📥 Download NLP probabilities (CSV)", data=proba_df.to_csv(index=False), file_name="nlp_probabilities.csv", use_container_width=True)
+                                    st.dataframe(proba_df.head(100), width="stretch")
+                                    st.download_button("📥 Download NLP probabilities (CSV)", data=proba_df.to_csv(index=False), file_name="nlp_probabilities.csv", width="stretch")
                     except Exception as e:
                         st.error(f"Batch scoring failed: {e}")
 
@@ -393,7 +446,7 @@ with tab3:
     with st.expander("🗣️ NLP: Realtime Text Scoring", expanded=False):
         if "nlp_model" in st.session_state and "nlp_vectorizer" in st.session_state:
             user_text = st.text_area("Enter text", value="I absolutely love this product!", height=100, key="nlp_realtime_text")
-            if st.button("Predict Sentiment (NLP)", type="primary", use_container_width=True, key="nlp_realtime_button"):
+            if st.button("Predict Sentiment (NLP)", type="primary", width="stretch", key="nlp_realtime_button"):
                 try:
                     vec = st.session_state["nlp_vectorizer"]
                     mdl = st.session_state["nlp_model"]
@@ -419,7 +472,7 @@ with tab3:
                             color="Probability",
                             color_continuous_scale="Viridis"
                         )
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                     # Log event if registry selection exists
                     try:
                         add_event(
@@ -501,9 +554,9 @@ with tab3:
             
             col1, col2 = st.columns(2)
             with col1:
-                submitted = st.form_submit_button("🎯 Make Prediction", type="primary", use_container_width=True)
+                submitted = st.form_submit_button("🎯 Make Prediction", type="primary", width="stretch")
             with col2:
-                st.form_submit_button("🔄 Reset Form", use_container_width=True)
+                st.form_submit_button("🔄 Reset Form", width="stretch")
         
         if submitted:
             try:
@@ -539,7 +592,7 @@ with tab3:
                         color="Probability",
                         color_continuous_scale="Viridis"
                     )
-                    st.plotly_chart(fig, use_container_width=True)
+                    st.plotly_chart(fig, width="stretch")
                     
                     st.json(proba_dict)
                 
@@ -616,7 +669,7 @@ with tab4:
                     yaxis_title="Count",
                     height=400
                 )
-                st.plotly_chart(fig_conf, use_container_width=True)
+                st.plotly_chart(fig_conf, width="stretch")
                 
                 # Confidence summary
                 col1, col2, col3 = st.columns(3)
@@ -665,7 +718,7 @@ with tab4:
                     color_continuous_scale="Viridis"
                 )
                 fig_imp.update_layout(height=400)
-                st.plotly_chart(fig_imp, use_container_width=True)
+                st.plotly_chart(fig_imp, width="stretch")
                 
                 st.divider()
                 
@@ -684,7 +737,7 @@ with tab4:
                         marginal_x="box",
                         marginal_y="box"
                     )
-                    st.plotly_chart(fig_interact, use_container_width=True)
+                    st.plotly_chart(fig_interact, width="stretch")
                     
                     corr_val = df_session[[feat1, feat2]].corr().iloc[0, 1]
                     st.metric("Correlation", f"{corr_val:.3f}", delta="Strong" if abs(corr_val) > 0.7 else "Weak")
@@ -740,7 +793,7 @@ with tab4:
             fig_timeline.update_yaxes(title_text="Count", row=1, col=1)
             fig_timeline.update_yaxes(title_text="Confidence", row=2, col=1)
             
-            st.plotly_chart(fig_timeline, use_container_width=True)
+            st.plotly_chart(fig_timeline, width="stretch")
             
             # Stats summary
             col1, col2, col3, col4 = st.columns(4)

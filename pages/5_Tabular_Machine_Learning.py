@@ -19,7 +19,7 @@ from plotly.subplots import make_subplots
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -89,14 +89,11 @@ config = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style=\"background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;\">
-        <div style=\"font-size: 24px; font-weight: 800;\">🤖 Tabular Machine Learning</div>
-        <div style=\"font-size: 15px; opacity: 0.95; margin-top: 6px;\">Train and compare models for classification or regression on row-and-column data.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="Tabular Machine Learning",
+    subtitle="Train and compare models for classification or regression on row-and-column data",
+    icon="🤖"
 )
 
 # Add AI sidebar assistant for contextual help
@@ -180,7 +177,7 @@ with tab2:
         "Best Models": ["RandomForest, XGBoost", "LightGBM, GradientBoosting", "XGBoost, GradientBoosting", "LightGBM", "XGBoost w/ weights"],
         "Key Consideration": ["Simple & interpretable", "Handle multi-class well", "Minimize prediction error", "Speed & memory", "Weighted loss function"]
     })
-    st.dataframe(selection_df, use_container_width=True)
+    st.dataframe(selection_df, width="stretch")
     
     st.divider()
     
@@ -397,7 +394,7 @@ with tab1:
 
     artifact_path = str(Path(config.artifacts_dir) / "tabular_model.joblib")
 
-    if st.button("Train model", type="primary", use_container_width=True):
+    if st.button("Train model", type="primary", width="stretch"):
         try:
             if not model_names:
                 st.error("Select at least one model.")
@@ -656,7 +653,7 @@ with tab1:
                         )
                         
                         fig.update_layout(height=400, showlegend=False, title_text=f"Model Performance Comparison")
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width="stretch")
                 
                 with viz_col2:
                     if metric_key and len(comparison_rows) > 1:
@@ -684,7 +681,7 @@ with tab1:
                                 title="Top 3 Models - Multi-Metric Comparison",
                                 height=400
                             )
-                            st.plotly_chart(fig_metrics, use_container_width=True)
+                            st.plotly_chart(fig_metrics, width="stretch")
 
                 # Highlight best model
                 best = max(comparison_rows, key=lambda r: r.get(metric_key, 0.0)) if metric_key else comparison_rows[0]
@@ -887,7 +884,7 @@ comparison_matrix = pd.DataFrame({
     "LightGBM": ["⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐⭐⭐", "⭐⭐", "⭐⭐⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐⭐"],
     "GradientBoosting": ["⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐", "⭐⭐⭐⭐", "⭐⭐", "⭐⭐", "⭐⭐⭐", "⭐⭐"]
 })
-st.dataframe(comparison_matrix, use_container_width=True)
+st.dataframe(comparison_matrix, width="stretch")
 st.caption("⭐ = Rating (more stars = better). These are general guidelines and depend on data & parameters.")
 
 st.divider()

@@ -14,7 +14,7 @@ st.set_page_config(page_title="DataScope Pro - Data Cleaning", layout="wide", in
 
 from src.core.config import load_config
 from src.core.state import get_clean_df, get_df, set_clean_df
-from src.core.ui import sidebar_dataset_status, page_navigation, instruction_block
+from src.core.ui import app_header, sidebar_dataset_status, page_navigation, instruction_block
 from src.core.standardized_ui import (
     standard_section_header,
     beginner_tip,
@@ -143,7 +143,7 @@ def _missing_values_handler(df: pd.DataFrame, original_df: pd.DataFrame):
             missing.to_frame(name="Count").assign(
                 Percentage=lambda x: (x["Count"] / len(df) * 100).round(1).astype(str) + "%"
             ),
-            use_container_width=True
+            width="stretch"
         )
     with col2:
         st.markdown("**Missing Data Types:**")
@@ -179,7 +179,7 @@ def _missing_values_handler(df: pd.DataFrame, original_df: pd.DataFrame):
     elif method == "Domain Default":
         custom_val = st.text_input(f"Enter domain default (e.g., 'Unknown', 'N/A')")
     
-    if st.button(f"Apply '{method}' to {col_to_fix}", type="primary", use_container_width=True):
+    if st.button(f"Apply '{method}' to {col_to_fix}", type="primary", width="stretch"):
         with st.status(f"🧹 Applying {method}...", expanded=True) as status:
             missing_before = df[col_to_fix].isnull().sum()
             st.write(f"Processing **{col_to_fix}**: {missing_before} missing values found...")
@@ -275,7 +275,7 @@ def _duplicates_handler(df: pd.DataFrame, original_df: pd.DataFrame):
         help="Keep First: retains original entry. Keep Last: retains most recent."
     )
     
-    if st.button("Apply Action", type="primary", use_container_width=True):
+    if st.button("Apply Action", type="primary", width="stretch"):
         with st.status("🔄 Handling duplicates...", expanded=True) as status:
             rows_before = len(df)
             temp_df = df.copy()
@@ -304,7 +304,7 @@ def _duplicates_handler(df: pd.DataFrame, original_df: pd.DataFrame):
             elif action == "Show Duplicates Only":
                 dup_rows = df[df.duplicated(keep=False)].sort_values(by=list(df.columns))
                 st.write(f"Showing {len(dup_rows)} rows that are duplicated:")
-                st.dataframe(dup_rows, use_container_width=True)
+                st.dataframe(dup_rows, width="stretch")
                 status.update(label="✅ Displayed", state="complete")
                 return []
             
@@ -378,7 +378,7 @@ def _outliers_handler(df: pd.DataFrame, original_df: pd.DataFrame):
     
     # Show first 10 outliers
     with st.expander("👁️ **Preview Outlier Values**", expanded=False):
-        st.dataframe(outliers.head(10).to_frame(), use_container_width=True)
+        st.dataframe(outliers.head(10).to_frame(), width="stretch")
     
     _show_cleaning_strategy_guide()
     
@@ -388,7 +388,7 @@ def _outliers_handler(df: pd.DataFrame, original_df: pd.DataFrame):
         help="Clip: Safe for measurement errors. Drop: If truly invalid. Log: For right-skewed data."
     )
     
-    if st.button("Apply Action", type="primary", use_container_width=True):
+    if st.button("Apply Action", type="primary", width="stretch"):
         with st.status(f"⚙️ Handling {len(outliers)} outliers...", expanded=True) as status:
             temp_df = df.copy()
             rows_before = len(temp_df)
@@ -442,14 +442,11 @@ def main():
     inject_custom_css()
     ai_sidebar_assistant()
     
-    st.markdown(
-        """
-        <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-            <div style="font-size: 24px; font-weight: 800;">🧼 Data Cleaning</div>
-            <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Prepare your data for success with strategic cleaning.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    app_header(
+        config,
+        page_title="Data Cleaning",
+        subtitle="Prepare your data for success with strategic cleaning",
+        icon="🧼"
     )
     
     raw_df = get_df(st.session_state)

@@ -10,7 +10,7 @@ from src.ai.insights import generate_insights
 from src.core.config import load_config
 from src.core.logging_utils import log_event
 from src.core.state import get_clean_df, get_df
-from src.core.ui import sidebar_dataset_status, instruction_block, page_navigation
+from src.core.ui import app_header, sidebar_dataset_status, instruction_block, page_navigation
 from src.core.standardized_ui import (
     standard_section_header,
     concept_explainer,
@@ -26,14 +26,11 @@ config = load_config()
 # Apply custom CSS
 inject_custom_css()
 
-st.markdown(
-    """
-    <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-        <div style="font-size: 24px; font-weight: 800;">🤖 AI Insights</div>
-        <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Ask for plain-language summaries, risks, or recommendations from your data.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
+app_header(
+    config,
+    page_title="AI Insights",
+    subtitle="Ask for plain-language summaries, risks, or recommendations from your data",
+    icon="💡"
 )
 instruction_block(
     "How to use this page",
@@ -108,7 +105,7 @@ with tab1:
     with c3:
         st.metric("Max tokens", str(max_new_tokens), "")
     
-    if st.button("🚀 Generate Insights", type="primary", use_container_width=True):
+    if st.button("🚀 Generate Insights", type="primary", width="stretch"):
         try:
             with st.spinner("🤖 Analyzing data and generating insights..."):
                 result = generate_insights(
@@ -213,7 +210,7 @@ with tab2:
     with col_temp2:
         temp_model = st.text_input("Model", value=config.ai_model, key="template_model")
     
-    if st.button("🚀 Run Template Analysis", type="primary", use_container_width=True):
+    if st.button("🚀 Run Template Analysis", type="primary", width="stretch"):
         try:
             with st.spinner(f"🤖 Running {template_category} analysis..."):
                 result = generate_insights(
@@ -255,7 +252,7 @@ with tab2:
             with st.expander(f"{insight['category']} - {insight['timestamp']}"):
                 st.markdown(insight["summary"])
         
-        if st.button("🗑️ Clear History", use_container_width=True):
+        if st.button("🗑️ Clear History", width="stretch"):
             st.session_state.insight_history = []
             st.rerun()
 

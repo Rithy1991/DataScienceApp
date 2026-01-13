@@ -140,7 +140,7 @@ def _workflow_guide() -> None:
                 st.markdown(f"- {task}")
         
         with col2:
-            if st.button(f"Go to {step_info['page']} →", use_container_width=True):
+            if st.button(f"Go to {step_info['page']} →", width="stretch"):
                 st.switch_page(f"pages/{step_info['page']}.py" if step_info['page'] != "app" else "app.py")
 
 
@@ -313,14 +313,11 @@ def main() -> None:
     # Add AI sidebar assistant
     ai_sidebar_assistant()
     
-    st.markdown(
-        """
-        <div style="background: #0b5ed7; color: #f8fafc; padding: 18px 20px; border-radius: 12px; margin-bottom: 16px;">
-            <div style="font-size: 24px; font-weight: 800;">🤖 DS Assistant</div>
-            <div style="font-size: 15px; opacity: 0.95; margin-top: 6px;">Quick guidance, workflow steps, and tips tailored to your data.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    app_header(
+        config,
+        page_title="DS Assistant",
+        subtitle="Quick guidance, workflow steps, and tips tailored to your data",
+        icon="🤖"
     )
     instruction_block(
         "How to use this page",

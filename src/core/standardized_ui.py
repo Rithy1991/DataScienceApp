@@ -55,11 +55,11 @@ def before_after_comparison(before_df, after_df, before_title="Raw Data", after_
     col1, col2 = st.columns(2)
     with col1:
         st.subheader(before_title)
-        st.dataframe(before_df.head(10), use_container_width=True)
+        st.dataframe(before_df.head(10), width="stretch")
         st.caption(f"{before_df.shape[0]} rows × {before_df.shape[1]} columns")
     with col2:
         st.subheader(after_title)
-        st.dataframe(after_df.head(10), use_container_width=True)
+        st.dataframe(after_df.head(10), width="stretch")
         st.caption(f"{after_df.shape[0]} rows × {after_df.shape[1]} columns")
 
 def model_explanation_panel(model_name: str, how_it_works: str, when_to_use: str, pros: list, cons: list):

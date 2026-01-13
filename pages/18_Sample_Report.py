@@ -3,7 +3,8 @@ Sample Report Export Page
 Generate and download a sample report for stakeholders
 """
 import streamlit as st
-from src.core.ui import render_footer
+from src.core.ui import app_header, render_footer
+from src.core.config import load_config
 from src.core.standardized_ui import (
     standard_section_header,
     concept_explainer,
@@ -16,7 +17,14 @@ from io import BytesIO
 
 st.set_page_config(page_title="Sample Report Export", layout="wide", initial_sidebar_state="expanded")
 
-st.title("📄 Sample Report Export")
+config = load_config()
+
+app_header(
+    config,
+    page_title="Sample Report Export",
+    subtitle="Generate downloadable reports showing cleaned data, model results, charts, and AI explanations",
+    icon="📄"
+)
 st.markdown("""
 Generate a downloadable sample report (CSV) showing cleaned data, model results, charts, and AI explanations.
 """)
@@ -37,10 +45,10 @@ model_results = pd.DataFrame({
 ai_explanation = "This model predicts the target class based on the features. High accuracy means reliable predictions. For best results, ensure data is clean and features are relevant."
 
 st.subheader("Preview: Cleaned Data")
-st.dataframe(df.head(10), use_container_width=True)
+st.dataframe(df.head(10), width="stretch")
 
 st.subheader("Preview: Model Results")
-st.dataframe(model_results, use_container_width=True)
+st.dataframe(model_results, width="stretch")
 
 st.subheader("AI-Generated Explanation")
 st.info(ai_explanation)

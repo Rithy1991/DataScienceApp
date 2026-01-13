@@ -51,7 +51,7 @@ def render_forecast_results(
     # Main visualization
     st.markdown("### 📊 Interactive Forecast Chart")
     fig = create_forecast_visualization(result)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     
     st.caption(
         "📖 **How to read:** Blue line shows historical data. Orange dashed line is the forecast. "
@@ -106,7 +106,7 @@ def render_forecast_results(
         numeric_cols = display_df.select_dtypes(include=["number"]).columns
         display_df[numeric_cols] = display_df[numeric_cols].round(2)
         
-        st.dataframe(display_df, use_container_width=True, hide_index=True)
+        st.dataframe(display_df, width="stretch", hide_index=True)
         
         st.divider()
     
@@ -116,7 +116,7 @@ def render_forecast_results(
         
         with st.expander("View full forecast data", expanded=False):
             forecast_df = create_forecast_table(result, max_rows=100)
-            st.dataframe(forecast_df, use_container_width=True, hide_index=True)
+            st.dataframe(forecast_df, width="stretch", hide_index=True)
             
             # Download button
             csv = result.to_dataframe().to_csv(index=False)
@@ -125,7 +125,7 @@ def render_forecast_results(
                 data=csv,
                 file_name=f"forecast_{result.model_type}_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
                 mime="text/csv",
-                use_container_width=True,
+                width="stretch",
             )
     
     # Model performance metrics
@@ -173,7 +173,7 @@ def render_model_comparison(
     # Comparison chart
     st.markdown("### 📊 Visual Comparison")
     fig = create_model_comparison_chart(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     
     st.caption(
         "📖 **Comparison view:** Each colored line represents a different model's forecast. "
@@ -202,7 +202,7 @@ def render_model_comparison(
         comparison_data.append(row)
     
     comparison_df = pd.DataFrame(comparison_data)
-    st.dataframe(comparison_df, use_container_width=True, hide_index=True)
+    st.dataframe(comparison_df, width="stretch", hide_index=True)
     
     st.divider()
     
@@ -253,7 +253,7 @@ def render_forecast_quick_summary(result: ForecastResult) -> None:
     
     # Mini chart
     fig = create_forecast_visualization(result, height=300)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def render_forecast_success_message(result: ForecastResult) -> None:
@@ -277,7 +277,7 @@ def render_forecast_success_message(result: ForecastResult) -> None:
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("📊 View Full Results", use_container_width=True):
+        if st.button("📊 View Full Results", width="stretch"):
             st.session_state.show_forecast_results = True
     
     with col2:
@@ -287,10 +287,10 @@ def render_forecast_success_message(result: ForecastResult) -> None:
             data=csv,
             file_name=f"forecast_{pd.Timestamp.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
-            use_container_width=True,
+            width="stretch",
         )
     
     with col3:
-        if st.button("🔄 Train Another Model", use_container_width=True):
+        if st.button("🔄 Train Another Model", width="stretch"):
             st.session_state.show_forecast_results = False
             st.rerun()

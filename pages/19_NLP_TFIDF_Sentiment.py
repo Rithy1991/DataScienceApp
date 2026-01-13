@@ -18,9 +18,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import LinearSVC
 
-from src.core.ui import page_navigation, sidebar_dataset_status
+from src.core.config import load_config
+from src.core.ui import app_header, page_navigation, sidebar_dataset_status
 from src.core.standardized_ui import (
-    standard_page_header,
     standard_section_header,
     beginner_tip,
     concept_explainer,
@@ -32,11 +32,14 @@ from src.core.standardized_ui import (
 
 st.set_page_config(page_title="NLP: TF-IDF & Sentiment", layout="wide", initial_sidebar_state="expanded")
 
+config = load_config()
+
 # Page Header
-standard_page_header(
-    title="NLP: TF-IDF & Sentiment",
-    subtitle="Vectorize text with TF-IDF and train a simple sentiment classifier.",
-    icon="🗣️",
+app_header(
+    config,
+    page_title="NLP: TF-IDF & Sentiment",
+    subtitle="Vectorize text with TF-IDF and train a simple sentiment classifier",
+    icon="🗣️"
 )
 
 # Session dataset status in sidebar
@@ -122,7 +125,7 @@ if source == "Use sample dataset":
         data=sample_csv,
         file_name="sample_sentiment.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 else:
     uploaded = st.file_uploader("Upload CSV with text and label columns", type=["csv"])
@@ -136,7 +139,7 @@ else:
 if df is None:
     st.stop()
 
-st.dataframe(df.head(10), use_container_width=True)
+st.dataframe(df.head(10), width="stretch")
 st.caption(f"{df.shape[0]} rows × {df.shape[1]} columns")
 
 # Step 3: Select Columns
@@ -236,7 +239,7 @@ st.dataframe(
             "Combined (current toggles)": [ex_combined],
         }
     ),
-    use_container_width=True,
+    width="stretch",
 )
 
 # Save processed dataset to session
@@ -249,7 +252,7 @@ save_target = st.selectbox(
     index=0,
     help="Choose where to store. 'clean_df' will replace the cleaned dataset used across pages.",
 )
-if st.button("Save to session", use_container_width=True):
+if st.button("Save to session", width="stretch"):
     st.session_state[save_target] = new_df
     st.success(f"Saved processed dataset to session as {save_target}.")
 
@@ -260,7 +263,7 @@ st.download_button(
     data=processed_csv,
     file_name="processed_sentiment.csv",
     mime="text/csv",
-    use_container_width=True,
+    width="stretch",
 )
 
 # Preview TF-IDF transformation on a small sample
@@ -348,7 +351,7 @@ if train_btn:
     cm = confusion_matrix(y_test, y_pred, labels=class_labels)
     fig = go.Figure(data=go.Heatmap(z=cm, x=class_labels, y=class_labels, colorscale="Blues", showscale=True))
     fig.update_layout(title="Confusion Matrix", xaxis_title="Predicted", yaxis_title="Actual")
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     mcol1, mcol2, mcol3, mcol4 = st.columns(4)
     with mcol1:
@@ -378,7 +381,7 @@ if train_btn:
                 terms = [feature_names[j] for j in idx_top]
                 values = [float(weights[j]) for j in idx_top]
                 st.markdown(f"**Class: {cls}**")
-                st.dataframe(pd.DataFrame({"term": terms, "weight": values}), use_container_width=True)
+                st.dataframe(pd.DataFrame({"term": terms, "weight": values}), width="stretch")
         else:
             st.caption("Term importance not available for this model.")
     except Exception as e:
@@ -387,7 +390,7 @@ if train_btn:
     # Quick prediction demo
     standard_section_header("Step 9: Try a Custom Prediction", "📝")
     user_text = st.text_area("Enter text to classify", value="I love this!")
-    if st.button("Predict Sentiment", use_container_width=True):
+    if st.button("Predict Sentiment", width="stretch"):
         try:
             X_user = vectorizer.transform([user_text])
             pred = model.predict(X_user)[0]

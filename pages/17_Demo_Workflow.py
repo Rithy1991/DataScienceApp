@@ -3,10 +3,19 @@ Demo Workflow: End-to-End Data Science Project Walkthrough
 Showcase for stakeholders and students
 """
 import streamlit as st
-from src.core.ui import render_footer
+from src.core.ui import app_header, render_footer
+from src.core.config import load_config
+
 st.set_page_config(page_title="Demo Workflow", layout="wide", initial_sidebar_state="expanded")
 
-st.title("🚀 Demo: End-to-End Data Science Workflow")
+config = load_config()
+
+app_header(
+    config,
+    page_title="Demo Workflow",
+    subtitle="End-to-end data science project walkthrough for stakeholders and students",
+    icon="🚀"
+)
 st.markdown("""
 This demo walks through a complete data science project using the platform. Each step is explained for beginners and stakeholders.
 """)
