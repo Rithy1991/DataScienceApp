@@ -369,12 +369,21 @@ class EnsembleSimulator:
         
         # AdaBoost
         start = time.time()
-        adaboost = AdaBoostClassifier(
-            estimator=DecisionTreeClassifier(max_depth=3),
-            n_estimators=n_estimators,
-            random_state=42,
-            algorithm='SAMME'
-        )
+        try:
+            # For sklearn >= 1.4, algorithm parameter is removed (defaults to SAMME.R)
+            adaboost = AdaBoostClassifier(
+                estimator=DecisionTreeClassifier(max_depth=3),
+                n_estimators=n_estimators,
+                random_state=42
+            )
+        except TypeError:
+            # For older sklearn versions with algorithm parameter
+            adaboost = AdaBoostClassifier(
+                estimator=DecisionTreeClassifier(max_depth=3),
+                n_estimators=n_estimators,
+                random_state=42,
+                algorithm='SAMME'
+            )
         adaboost.fit(X_train, y_train)
         y_pred = adaboost.predict(X_test)
         results['AdaBoost'] = {
